@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>UnraidDeck</Name>
+  <Repository>ghcr.io/OWNER/unraiddeck:latest</Repository>
+  <Registry>https://ghcr.io/OWNER/unraiddeck</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/OWNER/unraiddeck/issues</Support>
+  <Project>https://github.com/OWNER/unraiddeck</Project>
+  <Overview>
+UnraidDeck: dashboard all-in-one per Unraid + Docker in un solo container, zero dipendenze esterne.
+
+Gestione completa dei container (start/stop/update con clone integrale della configurazione, gestione dipendenti VPN net=container, log live, console exec, check aggiornamenti dai registry), monitoraggio del sistema Unraid (array, parity, dischi con temperatura da fonte passiva, pool ZFS/BTRFS, share, VM, UPS) e controllo alimentazione host.
+
+NOTA IMPORTANTE per il path /config: usare un percorso DIRETTO (es. /mnt/cache/appdata/unraiddeck) e NON /mnt/user/...: il database SQLite in modalità WAL su FUSE/shfs rischia corruzione. In alternativa usare una share con "Exclusive access" attivo.
+
+Su Unraid 7.x creare una API key con: unraid-api apikey --create (oppure Settings → Management Access → API Keys). Su Unraid 6.12 configurare il fallback SSH.
+
+Al primo avvio la UI propone un wizard per creare l'utente amministratore. La variabile PASSWORD è solo un bootstrap opzionale: rimuoverla dopo il setup.
+  </Overview>
+  <Category>Tools: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:8787]</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/OWNER/unraiddeck/main/frontend/public/icon-192.png</Icon>
+  <ExtraParams>--security-opt no-new-privileges=true --label net.unraid.docker.icon=https://raw.githubusercontent.com/OWNER/unraiddeck/main/frontend/public/icon-192.png --label net.unraid.docker.webui=http://[IP]:[PORT:8787]</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Porta WebUI" Target="8787" Default="8787" Mode="tcp" Description="Porta della web UI" Type="Port" Display="always" Required="true" Mask="false">8787</Config>
+  <Config Name="Docker socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="rw" Description="Socket Docker dell'host (rw, necessario per gestire i container)" Type="Path" Display="advanced" Required="true" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/cache/appdata/unraiddeck" Mode="rw" Description="Dati applicazione (SQLite, backup, cache icone). USARE UN PATH DIRETTO (no /mnt/user): WAL su FUSE rischia corruzione." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/unraiddeck</Config>
+  <Config Name="libvirt socket (opzionale)" Target="/var/run/libvirt/libvirt-sock" Default="" Mode="rw" Description="Opzionale: socket libvirt per la gestione VM" Type="Path" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="UNRAID_HOST" Target="UNRAID_HOST" Default="" Mode="" Description="IP/hostname del server Unraid (per GraphQL, UPS e webui [IP])" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="UNRAID_API_KEY" Target="UNRAID_API_KEY" Default="" Mode="" Description="API key unraid-api (Unraid 7.x): unraid-api apikey --create" Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="UNRAID_URL" Target="UNRAID_URL" Default="" Mode="" Description="Override endpoint GraphQL (default http://UNRAID_HOST), es. https://ip:porta" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="UNRAID_TLS_INSECURE" Target="UNRAID_TLS_INSECURE" Default="false" Mode="" Description="Accetta certificati self-signed sul GraphQL (SSL forzato con cert myunraid.net su IP locale)" Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="PASSWORD (solo bootstrap)" Target="PASSWORD" Default="" Mode="" Description="Solo per il primo avvio: crea l'utente admin. RIMUOVERE dopo il setup." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="SSH_USER" Target="SSH_USER" Default="" Mode="" Description="Fallback SSH (Unraid 6.12): utente (root)" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="SSH_PASSWORD" Target="SSH_PASSWORD" Default="" Mode="" Description="Fallback SSH: password (in alternativa a SSH_KEY)" Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="SSH_KEY" Target="SSH_KEY" Default="" Mode="" Description="Fallback SSH: percorso chiave privata (es. /config/id_ed25519) o PEM inline" Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="DOCKER_HOST" Target="DOCKER_HOST" Default="" Mode="" Description="Opzionale: endpoint Docker alternativo (es. tcp://socket-proxy:2375)" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="DISABLE_AUTH" Target="DISABLE_AUTH" Default="false" Mode="" Description="Disabilita l'autenticazione (SOLO LAN fidata: banner rosso permanente in UI)" Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="UPDATE_CHECK_INTERVAL" Target="UPDATE_CHECK_INTERVAL" Default="6h" Mode="" Description="Intervallo check aggiornamenti immagini (es. 6h, 12h)" Type="Variable" Display="advanced" Required="false" Mask="false">6h</Config>
+  <Config Name="UPDATE_VERIFY_TIMEOUT" Target="UPDATE_VERIFY_TIMEOUT" Default="" Mode="" Description="Override verifica post-update (default: healthcheck-aware automatico)" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="NOTIFY_WEBHOOK_URL" Target="NOTIFY_WEBHOOK_URL" Default="" Mode="" Description="Webhook notifiche (POST JSON compatibile Gotify/ntfy/Discord)" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="TZ" Target="TZ" Default="Europe/Rome" Mode="" Description="Timezone" Type="Variable" Display="advanced" Required="false" Mask="false">Europe/Rome</Config>
+</Container>

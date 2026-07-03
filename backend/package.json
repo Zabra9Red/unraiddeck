@@ -1,0 +1,28 @@
+{
+  "name": "unraiddeck-backend",
+  "version": "1.4.0",
+  "description": "UnraidDeck — dashboard all-in-one per Unraid + Docker (backend)",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "updater": "node src/updater.js",
+    "check": "node --check src/server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^12.2.0",
+    "cookie-parser": "^1.4.7",
+    "dockerode": "^4.0.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.1.0",
+    "p-limit": "^6.2.0",
+    "socket.io": "^4.8.1",
+    "ssh2": "^1.16.0",
+    "ws": "^8.18.2"
+  }
+}

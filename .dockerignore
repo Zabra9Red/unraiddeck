@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+**/node_modules
+frontend/dist
+frontend/dev-dist
+*.md
+!README.md
+.env
+data
+config
+docker
+UNRAIDDECK SPEC*

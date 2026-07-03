@@ -1,0 +1,212 @@
+// Stringhe UI centralizzate (lingua IT) — pronte per i18n.
+export const t = {
+  appName: 'UnraidDeck',
+  loading: 'Caricamento…',
+  error: 'Errore',
+  retry: 'Riprova',
+  cancel: 'Annulla',
+  confirm: 'Conferma',
+  close: 'Chiudi',
+  save: 'Salva',
+  search: 'Cerca…',
+  never: 'mai',
+  yes: 'Sì',
+  no: 'No',
+
+  // Tabs
+  tabDocker: 'Docker',
+  tabUnraid: 'Unraid',
+  tabSettings: 'Impostazioni',
+  tabAudit: 'Audit',
+
+  // Auth
+  login: 'Accedi',
+  logout: 'Esci',
+  username: 'Nome utente',
+  password: 'Password',
+  totpCode: 'Codice TOTP',
+  totpHint: 'Inserisci il codice a 6 cifre della tua app di autenticazione (o un recovery code)',
+  setupTitle: 'Benvenuto in UnraidDeck',
+  setupSubtitle: 'Crea l’utente amministratore per iniziare',
+  setupCta: 'Crea utente',
+  passwordMin: 'Minimo 8 caratteri',
+
+  // Banner
+  bannerNoAuth: 'ATTENZIONE: autenticazione disabilitata (DISABLE_AUTH=true). Usare solo su LAN fidata.',
+  bannerFuse: 'ATTENZIONE: /config è su FUSE/shfs (/mnt/user): SQLite in WAL rischia corruzione. Usa un path diretto (es. /mnt/cache/appdata/unraiddeck) o una share "exclusive".',
+  bannerPasswordEnv: 'La variabile PASSWORD è ancora impostata ma il setup è completato: rimuovila dal template.',
+
+  // Docker
+  containers: 'Container',
+  name: 'Nome',
+  image: 'Immagine',
+  state: 'Stato',
+  uptime: 'Uptime',
+  ports: 'Porte',
+  restartPolicy: 'Restart',
+  actions: 'Azioni',
+  webui: 'Apri WebUI',
+  stStart: 'Avvia',
+  stStop: 'Ferma',
+  stRestart: 'Riavvia',
+  stPause: 'Pausa',
+  stUnpause: 'Riprendi',
+  stKill: 'Kill',
+  stRemove: 'Rimuovi',
+  stUpdate: 'Aggiorna',
+  stLogs: 'Log',
+  stConsole: 'Console',
+  checkUpdates: 'Verifica aggiornamenti',
+  pruneImages: 'Prune immagini dangling',
+  diskSpace: 'Spazio disco',
+  bulkWith: (n) => `${n} selezionati`,
+  updateAvailable: 'Update disponibile',
+  updBadgePinned: 'pinned',
+  updBadgeLocal: 'locale',
+  updBadgeUpdate: 'update',
+  selfBadge: 'questo container',
+  running: 'in esecuzione',
+  exited: 'fermo',
+  paused: 'in pausa',
+  restarting: 'riavvio…',
+  healthy: 'healthy',
+  unhealthy: 'unhealthy',
+  starting: 'starting',
+  confirmTyped: (name) => `Per confermare digita "${name}"`,
+  confirmRemove: (name) => `Rimuovere definitivamente il container "${name}"?`,
+  confirmKill: (name) => `Inviare SIGKILL al container "${name}"?`,
+  confirmSelfTitle: 'Attenzione: questo è UnraidDeck!',
+  confirmSelfBody: 'Stai per fermare/rimuovere il container di UnraidDeck stesso: la UI diventerà irraggiungibile.',
+  updateTitle: (name) => `Aggiorna ${name}`,
+  updateDependents: 'Container dipendenti (rete via VPN/net=container) che verranno ricreati/riavviati:',
+  updateNoDependents: 'Nessun container dipendente.',
+  updateRemoveOld: 'Rimuovi la vecchia immagine (dangling) a fine update',
+  updateSelfNote: 'UnraidDeck si aggiorna tramite un helper effimero: la UI si riavvierà da sola.',
+  updateInProgress: 'Update in corso…',
+  upToDate: 'Già aggiornato',
+  logsPause: 'Pausa autoscroll',
+  logsResume: 'Riprendi autoscroll',
+  logsDownload: 'Scarica log',
+  execHint: 'Sessione shell nel container (bash se disponibile). Timeout inattività: 15 min.',
+  dfImages: 'Immagini',
+  dfContainers: 'Container',
+  dfVolumes: 'Volumi',
+  dfBuildCache: 'Build cache',
+  overview: 'Panoramica',
+  cpu: 'CPU',
+  ram: 'RAM',
+  net: 'Rete',
+  netRx: 'RX',
+  netTx: 'TX',
+  noContainers: 'Nessun container trovato',
+  lockConflict: 'Operazione già in corso su questo container',
+
+  // Unraid
+  unraidUnavailable: 'Dati Unraid non disponibili',
+  unraidModeGraphql: 'API GraphQL (Unraid 7.x)',
+  unraidModeSsh: 'Fallback SSH (Unraid 6.12)',
+  unraidModeNone: 'Non configurato: imposta UNRAID_HOST + UNRAID_API_KEY (7.x) o credenziali SSH (6.12)',
+  array: 'Array',
+  arrayStart: 'Avvia array',
+  arrayStop: 'Ferma array',
+  parity: 'Parity',
+  parityStart: 'Avvia check',
+  parityStartCorrect: 'Check con correzione',
+  parityPause: 'Pausa',
+  parityResume: 'Riprendi',
+  parityCancel: 'Annulla check',
+  parityHistory: 'Storico parity',
+  parityErrors: 'errori',
+  disks: 'Dischi',
+  disk: 'Disco',
+  temp: 'Temp',
+  spunDown: 'spin-down',
+  smart: 'SMART',
+  smartTitle: (dev) => `Report SMART — ${dev}`,
+  smartStandby: 'Disco in standby: report saltato per non svegliarlo.',
+  pools: 'Pool cache',
+  poolHealthy: 'integro',
+  poolDegraded: 'DEGRADATO',
+  shares: 'Share',
+  freeOf: (free, tot) => `${free} liberi di ${tot}`,
+  system: 'Sistema',
+  loadAvg: 'Load average',
+  memory: 'Memoria',
+  uptimeLabel: 'Uptime',
+  vms: 'Macchine virtuali',
+  vmStart: 'Avvia',
+  vmStop: 'Arresta',
+  vmForceStop: 'Forza arresto',
+  vmReboot: 'Riavvia',
+  ups: 'UPS',
+  upsOnline: 'In rete',
+  upsOnBattery: 'SU BATTERIA',
+  upsCharge: 'Carica',
+  upsLoad: 'Carico',
+  upsRuntime: 'Autonomia',
+  power: 'Alimentazione host',
+  powerReboot: 'Riavvia host',
+  powerShutdown: 'Spegni host',
+  confirmArrayStop: 'Fermare l’array? Tutti i servizi che usano i dischi si fermeranno.',
+  confirmPower: (a) => a === 'reboot' ? 'Riavviare il server Unraid?' : 'SPEGNERE il server Unraid?',
+  sectionError: (msg) => `Sezione non disponibile: ${msg}`,
+
+  // Notifiche
+  notifications: 'Notifiche',
+  markAllRead: 'Segna tutte come lette',
+  noNotifications: 'Nessuna notifica',
+  testNotify: 'Invia notifica di prova',
+
+  // Audit
+  auditTitle: 'Audit log',
+  auditUser: 'Utente',
+  auditAction: 'Azione',
+  auditTarget: 'Target',
+  auditOutcome: 'Esito',
+  auditWhen: 'Quando',
+
+  // Impostazioni
+  settings: 'Impostazioni',
+  secTitle: 'Sicurezza',
+  changePassword: 'Cambia password',
+  oldPassword: 'Password attuale',
+  newPassword: 'Nuova password',
+  totpTitle: 'Autenticazione a due fattori (TOTP)',
+  totpEnable: 'Attiva TOTP',
+  totpDisable: 'Disattiva TOTP',
+  totpScan: 'Scansiona il QR con la tua app (Aegis, Google Authenticator…) e inserisci il codice:',
+  totpRecovery: 'Codici di recupero (salvali ora, non verranno più mostrati):',
+  sessions: 'Sessioni attive',
+  sessionRevoke: 'Revoca',
+  sessionCurrent: 'corrente',
+  logoutAll: 'Disconnetti ovunque',
+  registryTitle: 'Credenziali registry (repo privati)',
+  registryHint: 'Usate per il check aggiornamenti e per il pull. Cifrate at-rest.',
+  registryAdd: 'Aggiungi',
+  thresholds: 'Soglie notifiche',
+  tempThresholdLabel: 'Soglia temperatura dischi (°C)',
+  version: 'Versione',
+};
+
+export function fmtBytes(n) {
+  if (n == null || Number.isNaN(n)) return '—';
+  if (n === 0) return '0 B';
+  const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+  const i = Math.min(u.length - 1, Math.floor(Math.log2(Math.abs(n)) / 10));
+  return `${(n / 2 ** (10 * i)).toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
+}
+export function fmtRate(n) {
+  return n == null ? '—' : `${fmtBytes(n)}/s`;
+}
+export function fmtUptime(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}g ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+export function fmtTs(ts) {
+  return ts ? new Date(ts).toLocaleString('it-IT') : '—';
+}

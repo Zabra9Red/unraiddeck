@@ -1,0 +1,40 @@
+services:
+  unraiddeck:
+    image: ghcr.io/OWNER/unraiddeck:latest
+    # build: .   # decommentare per build locale
+    container_name: unraiddeck
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Path DIRETTO (no /mnt/user): SQLite in WAL su FUSE/shfs rischia corruzione
+      - /mnt/cache/appdata/unraiddeck:/config
+      # Opzionale, per le VM via libvirt:
+      # - /var/run/libvirt/libvirt-sock:/var/run/libvirt/libvirt-sock
+    environment:
+      TZ: Europe/Rome
+      # PASSWORD: cambiami-subito        # solo bootstrap primo avvio
+      UNRAID_HOST: 192.168.1.10
+      # UNRAID_URL: https://192.168.1.10  # override endpoint GraphQL (https/porta custom)
+      # UNRAID_TLS_INSECURE: "true"       # cert self-signed sul GraphQL
+      UNRAID_API_KEY: ""                  # Unraid 7.x: unraid-api apikey --create
+      # SSH_USER: root                    # fallback Unraid 6.12
+      # SSH_PASSWORD: ""
+      # SSH_KEY: /config/id_ed25519
+      # DOCKER_HOST: tcp://socket-proxy:2375
+      # DISABLE_AUTH: "false"
+      # UPDATE_CHECK_INTERVAL: 6h
+      # UPDATE_VERIFY_TIMEOUT: 30s
+      # NOTIFY_WEBHOOK_URL: ""
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:8787/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/OWNER/unraiddeck/main/frontend/public/icon-192.png"
+      net.unraid.docker.webui: "http://[IP]:[PORT:8787]"
