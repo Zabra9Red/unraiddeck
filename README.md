@@ -48,7 +48,7 @@ docker run -d \
   -e UNRAID_HOST=192.168.1.10 \
   -e UNRAID_API_KEY=... \
   -e TZ=Europe/Rome \
-  ghcr.io/OWNER/unraiddeck:latest
+  ghcr.io/zabra9red/unraiddeck:latest
 ```
 
 Oppure con `docker-compose.yml` (incluso nel repo).

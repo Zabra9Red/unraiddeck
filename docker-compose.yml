@@ -1,6 +1,6 @@
 services:
   unraiddeck:
-    image: ghcr.io/OWNER/unraiddeck:latest
+    image: ghcr.io/zabra9red/unraiddeck:latest
     # build: .   # decommentare per build locale
     container_name: unraiddeck
     restart: unless-stopped
@@ -36,5 +36,5 @@ services:
       retries: 3
       start_period: 15s
     labels:
-      net.unraid.docker.icon: "https://raw.githubusercontent.com/OWNER/unraiddeck/main/frontend/public/icon-192.png"
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png"
       net.unraid.docker.webui: "http://[IP]:[PORT:8787]"

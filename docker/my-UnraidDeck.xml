@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>UnraidDeck</Name>
-  <Repository>ghcr.io/OWNER/unraiddeck:latest</Repository>
-  <Registry>https://ghcr.io/OWNER/unraiddeck</Registry>
+  <Repository>ghcr.io/zabra9red/unraiddeck:latest</Repository>
+  <Registry>https://ghcr.io/zabra9red/unraiddeck</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/OWNER/unraiddeck/issues</Support>
-  <Project>https://github.com/OWNER/unraiddeck</Project>
+  <Support>https://github.com/Zabra9Red/unraiddeck/issues</Support>
+  <Project>https://github.com/Zabra9Red/unraiddeck</Project>
   <Overview>
 UnraidDeck: dashboard all-in-one per Unraid + Docker in un solo container, zero dipendenze esterne.
 
@@ -23,8 +23,8 @@ Al primo avvio la UI propone un wizard per creare l'utente amministratore. La va
   <Category>Tools: Productivity:</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/OWNER/unraiddeck/main/frontend/public/icon-192.png</Icon>
-  <ExtraParams>--security-opt no-new-privileges=true --label net.unraid.docker.icon=https://raw.githubusercontent.com/OWNER/unraiddeck/main/frontend/public/icon-192.png --label net.unraid.docker.webui=http://[IP]:[PORT:8787]</ExtraParams>
+  <Icon>https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png</Icon>
+  <ExtraParams>--security-opt no-new-privileges=true --label net.unraid.docker.icon=https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png --label net.unraid.docker.webui=http://[IP]:[PORT:8787]</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DonateText/>
