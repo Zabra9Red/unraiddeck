@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UnraidDeck — post per il forum (apri, seleziona tutto il riquadro, copia, incolla nell'editor del forum)</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: #f4f4f8; margin: 0; padding: 24px; color: #222; }
+  .howto { max-width: 800px; margin: 0 auto 16px; background: #fff8e1; border: 1px solid #e0c96a; border-radius: 8px; padding: 12px 16px; font-size: 14px; }
+  .field { max-width: 800px; margin: 0 auto 8px; font-size: 13px; color: #666; }
+  .titlebox { max-width: 800px; margin: 0 auto 20px; background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 16px; font-weight: 600; }
+  .post { max-width: 800px; margin: 0 auto; background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 24px 28px; line-height: 1.5; }
+  .post h2 { font-size: 18px; margin: 20px 0 8px; }
+  .post ul { margin: 6px 0 12px; padding-left: 22px; }
+  .post li { margin: 3px 0; }
+  code { background: #eee; border-radius: 4px; padding: 1px 5px; font-size: 90%; }
+</style>
+</head>
+<body>
+
+<div class="howto">
+  <strong>Come pubblicare (2 minuti):</strong><br>
+  1. Login su <a href="https://forums.unraid.net">forums.unraid.net</a> →
+     sezione <a href="https://forums.unraid.net/forum/47-docker-containers/">Docker Containers</a> → <em>Start new topic</em><br>
+  2. Copia il titolo qui sotto nel campo titolo<br>
+  3. Seleziona tutto il riquadro del post (dal primo paragrafo a "Feedback…"), copia e incolla nell'editor: grassetti ed elenchi vengono mantenuti<br>
+  4. Pubblica, poi dammi l'URL del thread: aggiorno il campo <code>&lt;Support&gt;</code> del template
+</div>
+
+<div class="field">CAMPO TITOLO:</div>
+<div class="titlebox">[Support] UnraidDeck — all-in-one dashboard for Unraid + Docker (single container)</div>
+
+<div class="field">CORPO DEL POST (seleziona da qui in giù, dentro il riquadro):</div>
+<div class="post">
+<p>UnraidDeck is a single-container web dashboard that combines full Docker management with Unraid system monitoring. No external dependencies, no agents.</p>
+
+<h2>Docker features</h2>
+<ul>
+  <li>Container list with live CPU/RAM/network stats, sparklines, ports, restart policy, icons and "Open WebUI" button</li>
+  <li>Start / stop / restart / pause / kill / remove / update / prune, with per-container locking and bulk actions</li>
+  <li><strong>Safe updates</strong>: image pull with progress, full config clone (static IPs on br0/macvlan preserved), health-check-aware verification, <strong>automatic rollback</strong>, update journal with crash recovery</li>
+  <li><strong>VPN pattern supported</strong>: containers using <code>--net=container:X</code> are detected and recreated/restarted automatically when X is updated</li>
+  <li>Self-update via ephemeral helper container</li>
+  <li>Registry update checks (HEAD requests — they don't consume Docker Hub pull rate limits), private registry credentials supported</li>
+  <li>Live logs (search, streaming download), in-browser console (xterm.js)</li>
+</ul>
+
+<h2>Unraid features</h2>
+<ul>
+  <li>Unraid 7.x: official GraphQL API with capability detection via introspection (each section degrades gracefully)</li>
+  <li>Unraid 6.12: SSH fallback (emhttp ini parsing)</li>
+  <li>Array &amp; parity control with history, disk temps from passive sources (never wakes spun-down disks; SMART on demand with <code>-n standby</code>), ZFS/BTRFS pool health, shares, VMs, UPS (apcupsd/NUT over TCP), host reboot/shutdown</li>
+  <li>Notifications with hysteresis + cooldown, optional webhook (Gotify/ntfy/Discord)</li>
+</ul>
+
+<h2>Security</h2>
+<ul>
+  <li>First-run setup wizard, opaque sessions, optional TOTP 2FA with recovery codes, full audit log, rate limiting, strict CSP, secrets encrypted at rest</li>
+  <li>Typed confirmations for destructive actions</li>
+</ul>
+
+<h2>Install</h2>
+<ul>
+  <li>Community Applications (pending) or template XML from the repo</li>
+  <li>Image: <code>ghcr.io/zabra9red/unraiddeck:latest</code> (amd64)</li>
+  <li>⚠️ Use a direct path for <code>/config</code> (e.g. <code>/mnt/cache/appdata/unraiddeck</code>), not <code>/mnt/user/...</code> — SQLite WAL on FUSE risks corruption. The app warns you if misconfigured.</li>
+</ul>
+
+<h2>Links</h2>
+<ul>
+  <li>Project: <a href="https://github.com/Zabra9Red/unraiddeck">https://github.com/Zabra9Red/unraiddeck</a></li>
+  <li>Issues: <a href="https://github.com/Zabra9Red/unraiddeck/issues">https://github.com/Zabra9Red/unraiddeck/issues</a></li>
+</ul>
+
+<p>Feedback and bug reports welcome!</p>
+</div>
+
+</body>
+</html>

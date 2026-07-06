@@ -44,6 +44,8 @@ Passi:
 
 ## 5. Testo pronto per il thread forum (EN)
 
+> Versioni copia-incolla: **`docs/forum-post.html`** (aprilo nel browser, seleziona il riquadro, copia → l'editor del forum mantiene grassetti/liste) oppure **`docs/forum-post.txt`** (testo puro). Il testo integrale è anche qui sotto.
+
 ---
 
 **Title:** [Support] UnraidDeck — all-in-one dashboard for Unraid + Docker (single container)
