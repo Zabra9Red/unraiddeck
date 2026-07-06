@@ -7,3 +7,4 @@ dev-dist/
 /config/
 backend/data/
 .DS_Store
+ruvector.db
