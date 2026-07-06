@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.4.1] — 2026-07-06
+
+### Corretto
+- **GraphQL con "Use SSL: Yes"**: il client ora segue i redirect (302 → `https://<hash>.myunraid.net/graphql`), quindi basta `UNRAID_HOST` anche con SSL forzato; errori certificato suggeriscono `UNRAID_TLS_INSECURE=true`.
+- **Diagnostica connessione Unraid in UI**: con host configurato ma API non raggiungibile la tab Unraid mostra l'errore reale e i passi per risolvere (API key, UNRAID_URL, SSH), invece del messaggio generico "Non configurato".
+- Download log in streaming reale dal socket Docker (prima dockerode bufferizzava l'intero log in RAM con `follow:false`).
+
 ## [1.4.0] — 2026-07-03
 
 Prima release pubblica (spec v1.4).

@@ -15,14 +15,13 @@ function endpoint() {
   return config.unraidUrl.replace(/\/$/, '') + '/graphql';
 }
 
-// POST JSON con supporto TLS self-signed (SSL forzato ⇒ cert myunraid.net su IP locale).
-export function gqlRequest(query, variables = {}, timeoutMs = 15000) {
-  const url = endpoint();
-  if (!url) return Promise.reject(new Error('UNRAID_URL/UNRAID_HOST non configurati'));
+// POST JSON con supporto TLS self-signed (SSL forzato ⇒ cert myunraid.net su IP
+// locale) e follow dei redirect: con "Use SSL: Yes" il server risponde 302 verso
+// https://<hash>.myunraid.net — va seguito, il cert lì è valido.
+function postJson(urlStr, body, timeoutMs, redirectsLeft) {
   return new Promise((resolve, reject) => {
-    const u = new URL(url);
+    const u = new URL(urlStr);
     const isHttps = u.protocol === 'https:';
-    const body = JSON.stringify({ query, variables });
     const req = (isHttps ? https : http).request({
       hostname: u.hostname,
       port: u.port || (isHttps ? 443 : 80),
@@ -32,11 +31,19 @@ export function gqlRequest(query, variables = {}, timeoutMs = 15000) {
         'content-type': 'application/json',
         'content-length': Buffer.byteLength(body),
         'x-api-key': config.unraidApiKey || '',
-        origin: config.unraidUrl,
+        origin: `${u.protocol}//${u.host}`,
       },
       rejectUnauthorized: isHttps ? !config.unraidTlsInsecure : undefined,
       timeout: timeoutMs,
     }, (res) => {
+      // Redirect (SSL forzato): ripeti la POST sulla nuova location
+      if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+        res.resume();
+        if (redirectsLeft <= 0) return reject(new Error('Troppi redirect dal GraphQL (SSL forzato?)'));
+        const next = new URL(res.headers.location, urlStr);
+        next.pathname = '/graphql'; // il redirect può puntare alla root
+        return resolve(postJson(next.href, body, timeoutMs, redirectsLeft - 1));
+      }
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => {
@@ -53,9 +60,21 @@ export function gqlRequest(query, variables = {}, timeoutMs = 15000) {
       });
     });
     req.on('timeout', () => req.destroy(new Error('Timeout GraphQL')));
-    req.on('error', reject);
+    req.on('error', (e) => {
+      // Suggerimento chiaro per il caso cert self-signed su IP
+      if (/certificate|self[- ]signed|unable to verify/i.test(e.message)) {
+        return reject(new Error(`${e.message} — impostare UNRAID_TLS_INSECURE=true oppure UNRAID_URL con l'hostname del certificato`));
+      }
+      reject(e);
+    });
     req.end(body);
   });
+}
+
+export function gqlRequest(query, variables = {}, timeoutMs = 15000) {
+  const url = endpoint();
+  if (!url) return Promise.reject(new Error('UNRAID_URL/UNRAID_HOST non configurati'));
+  return postJson(url, JSON.stringify({ query, variables }), timeoutMs, 3);
 }
 
 // ---- Introspection → capability map ----

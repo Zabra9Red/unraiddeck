@@ -1,6 +1,6 @@
 {
   "name": "unraiddeck-backend",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "UnraidDeck — dashboard all-in-one per Unraid + Docker (backend)",
   "type": "module",
   "main": "src/server.js",

@@ -22,9 +22,10 @@ export function UnraidView() {
     load();
     const s = getSocket();
     const unsub = subscribe('unraid');
-    const onSection = ({ section, data, error }) => {
+    const onSection = ({ section, data, error, mode }) => {
       setSnap((prev) => prev ? {
         ...prev,
+        mode: mode || prev.mode,
         sections: { ...prev.sections, [section]: data },
         errors: { ...prev.errors, [section]: error },
       } : prev);
@@ -38,10 +39,26 @@ export function UnraidView() {
   if (snap.mode === 'none') {
     return (
       <Card title={t.tabUnraid}>
-        <EmptyState>
-          <div className="text-subtext0 mb-1">{t.unraidUnavailable}</div>
-          <div className="text-xs max-w-md mx-auto">{t.unraidModeNone}</div>
-        </EmptyState>
+        {snap.configured ? (
+          <div className="max-w-2xl mx-auto py-6">
+            <div className="text-peach font-medium mb-2">{t.unraidUnreachableTitle}</div>
+            {snap.lastError && (
+              <div className="text-sm text-red bg-red/10 border border-red/30 rounded-lg px-3 py-2 mb-3 font-mono break-words">
+                {snap.lastError}
+              </div>
+            )}
+            <ul className="text-sm text-subtext1 space-y-1.5 list-disc pl-5">
+              {t.unraidHints.map((h, i) => <li key={i}>{h}</li>)}
+            </ul>
+            <div className="text-xs text-overlay0 mt-3">{t.unraidRetryNote}</div>
+            <div className="mt-4"><Btn size="sm" onClick={load}>{t.retry}</Btn></div>
+          </div>
+        ) : (
+          <EmptyState>
+            <div className="text-subtext0 mb-1">{t.unraidUnavailable}</div>
+            <div className="text-xs max-w-md mx-auto">{t.unraidModeNone}</div>
+          </EmptyState>
+        )}
       </Card>
     );
   }

@@ -96,8 +96,9 @@ async function main() {
   startEvents(io);
   scheduleUpdateChecks();
 
-  // Unraid: introspection GraphQL → capability map, oppure fallback SSH
-  await initUnraid(io);
+  // Unraid: introspection GraphQL → capability map, oppure fallback SSH.
+  // Non bloccante: il server parte anche se il GraphQL è lento/irraggiungibile.
+  initUnraid(io).catch((e) => log.warn('[unraid] init fallita:', e.message));
 
   // Retention periodiche (audit 90gg/20k, notifiche 90gg, sessioni scadute)
   const pruneTimer = setInterval(() => {

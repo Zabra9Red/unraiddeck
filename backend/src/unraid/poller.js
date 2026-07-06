@@ -21,6 +21,7 @@ export const unraidState = {
   sections: {},            // system | array | disks | pools | shares | vms | ups
   errors: {},              // per-sezione: messaggio errore
   updatedAt: {},
+  lastError: null,         // ultimo errore di connessione GraphQL (per la UI)
 };
 
 function setSection(name, data, error = null) {
@@ -44,7 +45,9 @@ export function snapshot() {
     errors: unraidState.errors,
     updatedAt: unraidState.updatedAt,
     configured: Boolean(config.unraidHost || config.unraidUrl),
+    apiKeyConfigured: Boolean(config.unraidApiKey),
     sshConfigured: ssh.sshConfigured(),
+    lastError: unraidState.lastError,
   };
 }
 
@@ -234,11 +237,15 @@ async function chooseMode(quiet = false) {
     try {
       unraidState.caps = await gql.introspect();
       unraidState.mode = 'graphql';
+      unraidState.lastError = null;
       startNotificationSub();
       return;
     } catch (e) {
+      unraidState.lastError = e.message;
       if (!quiet) log.warn(`[unraid] GraphQL non raggiungibile (${e.message})${ssh.sshConfigured() ? ', fallback SSH' : ''}`);
     }
+  } else if (config.unraidHost || config.unraidUrl) {
+    unraidState.lastError = 'UNRAID_API_KEY non impostata';
   }
   if (ssh.sshConfigured()) {
     unraidState.mode = 'ssh';
