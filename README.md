@@ -1,5 +1,7 @@
 # UnraidDeck
 
+🇬🇧 [English version](README.en.md)
+
 > Dashboard all-in-one per Unraid + Docker. **Un solo container, zero dipendenze esterne.**
 
 UnraidDeck unisce in un'unica web UI la gestione completa dei container Docker dell'host Unraid e il monitoraggio/controllo del sistema (array, parity, dischi, pool, share, VM, UPS, alimentazione host).
