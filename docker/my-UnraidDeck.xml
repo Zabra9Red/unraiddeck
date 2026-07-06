@@ -22,7 +22,7 @@ Al primo avvio la UI propone un wizard per creare l'utente amministratore. La va
   </Overview>
   <Category>Tools: Productivity:</Category>
   <WebUI>http://[IP]:[PORT:8787]</WebUI>
-  <TemplateURL/>
+  <TemplateURL>https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/docker/my-UnraidDeck.xml</TemplateURL>
   <Icon>https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png</Icon>
   <ExtraParams>--security-opt no-new-privileges=true --label net.unraid.docker.icon=https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png --label net.unraid.docker.webui=http://[IP]:[PORT:8787]</ExtraParams>
   <PostArgs/>

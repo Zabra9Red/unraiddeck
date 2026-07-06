@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Maintainer>
-  <Icon>https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png</Icon>
+<CommunityApplications>
   <Profile>
-    UnraidDeck: all-in-one dashboard for Unraid + Docker in a single container with zero external dependencies. Safe container updates with automatic rollback, VPN (net=container) dependents handling, live logs and exec console, plus full Unraid monitoring: array, parity, disks, ZFS/BTRFS pools, shares, VMs, UPS and host power control.
+    UnraidDeck: all-in-one dashboard for Unraid + Docker in a single container with zero external dependencies. Safe container updates with automatic rollback, VPN (net=container) dependents handling, live logs and exec console, plus full Unraid monitoring: array, parity, disks, ZFS/BTRFS pools, shares, VMs, UPS and host power control. Support via GitHub issues.
   </Profile>
-</Maintainer>
+  <Icon>https://raw.githubusercontent.com/Zabra9Red/unraiddeck/main/frontend/public/icon-192.png</Icon>
+  <WebPage>https://github.com/Zabra9Red/unraiddeck</WebPage>
+</CommunityApplications>
