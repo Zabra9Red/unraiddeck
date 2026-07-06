@@ -8,3 +8,4 @@ dev-dist/
 backend/data/
 .DS_Store
 ruvector.db
+SESSION-LOG.md
