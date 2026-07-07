@@ -68,7 +68,7 @@ oppure dalla GUI: **Settings → Management Access → API Keys**. Servono i per
 Imposta `SSH_USER` (tipicamente `root`) e `SSH_PASSWORD` **oppure** `SSH_KEY` (percorso di una chiave privata montata in `/config`, o PEM inline). UnraidDeck legge `/var/local/emhttp/*.ini`, usa `mdcmd` per array/parity, `virsh` per le VM, `powerdown` per l'host.
 
 ### VM via libvirt (opzionale)
-Mount opzionale `/var/run/libvirt/libvirt-sock` (già predisposto nel template). In sua assenza le VM sono gestite via GraphQL (7.x) o `virsh` su SSH (6.12).
+Mount opzionale della **directory** `/var/run/libvirt` (già predisposto nel template). Non montare il file `libvirt-sock` direttamente: se il container parte prima di libvirtd, Docker crea la source mancante come directory e il sottosistema VM non si avvia più. In assenza del mount le VM sono gestite via GraphQL (7.x) o `virsh` su SSH (6.12).
 
 ---
 

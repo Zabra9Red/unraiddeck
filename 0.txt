@@ -1,4 +1,0 @@
-https://ca.unraid.net/submit/help/repository-xml
-https://ca.unraid.net/submit/help/repository-info-xml
-https://ca.unraid.net/submit/help/xml-field-reference
-https://ca.unraid.net/submit/help/builders

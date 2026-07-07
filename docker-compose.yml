@@ -12,8 +12,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Path DIRETTO (no /mnt/user): SQLite in WAL su FUSE/shfs rischia corruzione
       - /mnt/cache/appdata/unraiddeck:/config
-      # Opzionale, per le VM via libvirt:
-      # - /var/run/libvirt/libvirt-sock:/var/run/libvirt/libvirt-sock
+      # Opzionale, per le VM via libvirt. Montare la DIRECTORY, non il socket:
+      # se il container parte prima di libvirtd, Docker creerebbe la source
+      # mancante come directory e libvirtd non potrebbe più creare il socket.
+      # - /var/run/libvirt:/var/run/libvirt
     environment:
       TZ: Europe/Rome
       # PASSWORD: cambiami-subito        # solo bootstrap primo avvio
