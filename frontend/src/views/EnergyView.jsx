@@ -33,6 +33,69 @@ function StatTile({ label, kwh, cost, accent }) {
   );
 }
 
+// Tabella storico ordinabile: granularità day/week/month/year, sort per data
+// o per costo (asc/desc) cliccando l'intestazione.
+function HistoryTable() {
+  const [gran, setGran] = useState('day');
+  const [rows, setRows] = useState(null);
+  const [sort, setSort] = useState({ key: 'period', dir: 'desc' });
+
+  useEffect(() => {
+    setRows(null);
+    api.get(`/unraid/energy/breakdown?granularity=${gran}`).then(setRows).catch(() => setRows([]));
+  }, [gran]);
+
+  const fmtP = (p) => gran === 'day' ? fmtDay(p) + `/${p.slice(2, 4)}` : gran === 'month' ? fmtMonth(p) : p.replace('-W', ' sett. ');
+  const sorted = (rows || []).slice().sort((a, b) => {
+    const va = sort.key === 'period' ? a.period : (a.cost ?? a.kwh);
+    const vb = sort.key === 'period' ? b.period : (b.cost ?? b.kwh);
+    const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+    return sort.dir === 'asc' ? cmp : -cmp;
+  });
+  const toggle = (key) => setSort((s) => ({ key, dir: s.key === key && s.dir === 'desc' ? 'asc' : 'desc' }));
+  const arrow = (key) => sort.key === key ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : '';
+
+  return (
+    <Card title={t.energyHistTitle}>
+      <div className="flex items-center gap-1.5 text-xs mb-2">
+        {[['day', t.energyGranDay], ['week', t.energyGranWeek], ['month', t.energyGranMonth], ['year', t.energyGranYear]].map(([g, label]) => (
+          <button
+            key={g}
+            onClick={() => setGran(g)}
+            className={`px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${gran === g ? 'border-yellow text-yellow bg-yellow/10' : 'border-surface1 text-subtext0 hover:border-overlay0'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {!rows ? <Spinner /> : !rows.length ? (
+        <div className="text-xs text-overlay0">{t.energyNoData}</div>
+      ) : (
+        <div className="max-h-72 overflow-y-auto pr-1">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-base">
+              <tr className="text-xs text-subtext0 select-none">
+                <th className="text-left font-medium py-1 cursor-pointer hover:text-text" onClick={() => toggle('period')}>{t.energyColPeriod}{arrow('period')}</th>
+                <th className="text-right font-medium py-1 cursor-pointer hover:text-text" onClick={() => toggle('cost')}>{t.energyColKwh}{arrow('cost')}</th>
+                <th className="text-right font-medium py-1 cursor-pointer hover:text-text w-24" onClick={() => toggle('cost')}>{t.energyColCost}{arrow('cost')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.period} className="border-t border-surface0">
+                  <td className="py-1 text-subtext1">{fmtP(r.period)}</td>
+                  <td className="py-1 text-right">{fmtK(r.kwh)}</td>
+                  <td className="py-1 text-right text-yellow">{r.cost != null ? fmtE(r.cost) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function EnergyView() {
   const toast = useToast();
   const [ups, setUps] = useState(null);
@@ -177,6 +240,9 @@ export function EnergyView() {
           <BarPanel title={t.energyBarMonths} points={monthPoints} valueFmt={fmtK} costFmt={fmtE} />
         </Card>
       </div>
+
+      {/* Storico ordinabile per data/costo */}
+      <HistoryTable />
 
       {/* Prezzo energia */}
       <Card title={t.energyPrice}>

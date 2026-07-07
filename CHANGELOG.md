@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.8.0] — 2026-07-08
+
+### Aggiunto
+- **Storico consumi ordinabile** nella tab Energia: tabella per giorno/settimana/mese/anno con ordinamento per data o per costo (crescente/decrescente) cliccando le intestazioni.
+
 ## [1.7.1] — 2026-07-07
 
 ### Aggiunto
