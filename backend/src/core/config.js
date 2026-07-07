@@ -50,7 +50,7 @@ export const config = {
   pollShares: parseDuration(env.POLL_SHARES, 300000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.4.1',
+  version: env.UNRAIDDECK_VERSION || '1.4.2',
 };
 
 export default config;

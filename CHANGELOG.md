@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.4.2] — 2026-07-07
+
+### Corretto
+- **GraphQL con introspection disabilitata** (`INTROSPECTION_DISABLED`, default di unraid-api in produzione): ora UnraidDeck ripiega su uno schema statico compatibile 7.x e rimuove automaticamente i campi che il server rifiuta (`Cannot query field …`), quindi la tab Unraid funziona senza abilitare la developer sandbox.
+- Gli errori GraphQL restituiti con status HTTP 400 vengono estratti dal body JSON invece di apparire come errore HTTP grezzo.
+- Template CA/compose: il mount libvirt opzionale ora è la **directory** `/var/run/libvirt` e non il file socket — bind del file crea una race al boot che può lasciare giù il sottosistema VM (issue #1, grazie @junkerderprovinz).
+
 ## [1.4.1] — 2026-07-06
 
 ### Corretto

@@ -47,16 +47,15 @@ function postJson(urlStr, body, timeoutMs, redirectsLeft) {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => {
-        if (res.statusCode < 200 || res.statusCode >= 300) {
+        // Apollo risponde anche 400 con body JSON {errors:[...]}: gli errori
+        // GraphQL vanno estratti a prescindere dallo status HTTP.
+        let json = null;
+        try { json = JSON.parse(data); } catch { /* non-JSON, gestito sotto */ }
+        if (json?.errors?.length) return reject(new Error(json.errors.map(e => e.message).join('; ')));
+        if (res.statusCode < 200 || res.statusCode >= 300 || !json) {
           return reject(new Error(`GraphQL HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
         }
-        try {
-          const json = JSON.parse(data);
-          if (json.errors?.length) return reject(new Error(json.errors.map(e => e.message).join('; ')));
-          resolve(json.data);
-        } catch (e) {
-          reject(new Error(`Risposta GraphQL non valida: ${e.message}`));
-        }
+        resolve(json.data);
       });
     });
     req.on('timeout', () => req.destroy(new Error('Timeout GraphQL')));
@@ -93,8 +92,84 @@ function unwrapType(t) {
   return t || {};
 }
 
+// Schema statico di riserva (unraid-api 7.x) per server con introspection
+// disabilitata (default Apollo in produzione). I nomi campo errati per la
+// versione in uso vengono eliminati a runtime da pruneRejectedFields().
+const STATIC_TYPES = {
+  Query: { array: 'UnraidArray', disks: 'Disk', shares: 'Share', info: 'Info', vms: 'Vms', vars: 'Vars', metrics: 'Metrics', parityHistory: 'ParityCheck', notifications: 'Notifications' },
+  Mutation: { array: 'ArrayMutations', parityCheck: 'ParityCheckMutations', vm: 'VmMutations', reboot: 'Boolean', shutdown: 'Boolean' },
+  UnraidArray: { state: 'String', capacity: 'ArrayCapacity', parities: 'ArrayDisk', disks: 'ArrayDisk', caches: 'ArrayDisk' },
+  ArrayCapacity: { kilobytes: 'Capacity', disks: 'Capacity' },
+  Capacity: { free: 'String', used: 'String', total: 'String' },
+  ArrayDisk: Object.fromEntries(['id', 'idx', 'name', 'device', 'size', 'status', 'type', 'temp', 'rotational', 'numErrors', 'numReads', 'numWrites', 'fsSize', 'fsFree', 'fsUsed', 'fsType', 'exportable', 'color', 'transport'].map(f => [f, 'String'])),
+  Disk: { id: 'String', device: 'String', name: 'String', vendor: 'String', size: 'String', temperature: 'Int', smartStatus: 'String', serialNum: 'String', interfaceType: 'String', rotational: 'Boolean', type: 'String' },
+  Share: { name: 'String', free: 'String', used: 'String', size: 'String', comment: 'String', cache: 'Boolean', include: 'String', exclude: 'String' },
+  Info: { os: 'InfoOs', cpu: 'InfoCpu', memory: 'InfoMemory', versions: 'Versions' },
+  InfoOs: { platform: 'String', distro: 'String', release: 'String', uptime: 'String', hostname: 'String' },
+  InfoCpu: { manufacturer: 'String', brand: 'String', cores: 'Int', threads: 'Int' },
+  InfoMemory: { total: 'String', free: 'String', used: 'String', available: 'String', active: 'String' },
+  Versions: { unraid: 'String', kernel: 'String', docker: 'String' },
+  Vms: { domain: 'VmDomain', domains: 'VmDomain' },
+  VmDomain: { uuid: 'String', name: 'String', state: 'String' },
+  ArrayMutations: { setState: 'UnraidArray' },
+  ParityCheckMutations: { start: 'Boolean', pause: 'Boolean', resume: 'Boolean', cancel: 'Boolean' },
+  VmMutations: { start: 'Boolean', stop: 'Boolean', pause: 'Boolean', resume: 'Boolean', reboot: 'Boolean', forceStop: 'Boolean' },
+};
+
+function loadStaticSchema() {
+  schemaTypes = new Map();
+  for (const [name, fields] of Object.entries(STATIC_TYPES)) {
+    schemaTypes.set(name, {
+      fields: Object.fromEntries(Object.entries(fields).map(([f, tn]) => [f, { typeName: tn, kind: 'OBJECT' }])),
+    });
+  }
+  const q = schemaTypes.get('Query').fields;
+  const m = schemaTypes.get('Mutation').fields;
+  caps = {
+    array: true, disks: true, pools: false, shares: true, info: true, vms: true,
+    notifications: 'notifications' in q,
+    notificationsSub: false, // senza introspection non assumiamo la subscription
+    arrayMutations: 'array' in m, parityMutations: 'parityCheck' in m, vmMutations: 'vm' in m,
+    reboot: true, shutdown: true,
+    _static: true,
+    _queryFields: Object.fromEntries(Object.entries(q).map(([k, v]) => [k, v.typeName])),
+  };
+  return caps;
+}
+
+// "Cannot query field \"x\" on type \"Y\"" → elimina il campo dallo schema
+// locale così il prossimo tentativo compone la query senza. Serve col fallback
+// statico, dove i campi sono ipotizzati e non letti dal server.
+function pruneRejectedFields(message) {
+  let pruned = false;
+  for (const m of String(message).matchAll(/Cannot query field "([^"]+)" on type "([^"]+)"/g)) {
+    const t = schemaTypes?.get(m[2]);
+    if (t && m[1] in t.fields) { delete t.fields[m[1]]; pruned = true; }
+  }
+  return pruned;
+}
+
+// Esegue build() (che compone la query dallo schema corrente); se il server
+// rifiuta dei campi li elimina e riprova, finché la query passa.
+async function gqlAdaptive(build) {
+  for (let i = 0; i < 4; i++) {
+    try { return await build(); }
+    catch (e) { if (!pruneRejectedFields(e.message)) throw e; }
+  }
+  return build();
+}
+
 export async function introspect() {
-  const data = await gqlRequest(INTROSPECTION, {}, 20000);
+  let data;
+  try {
+    data = await gqlRequest(INTROSPECTION, {}, 20000);
+  } catch (e) {
+    if (/introspection/i.test(String(e.message))) {
+      log.warn('[graphql] introspection disabilitata dal server: uso lo schema statico unraid-api 7.x (campi non supportati eliminati al primo errore)');
+      return loadStaticSchema();
+    }
+    throw e;
+  }
   const schema = data.__schema;
   schemaTypes = new Map();
   for (const t of schema.types || []) {
@@ -167,67 +242,75 @@ function sel(typeName, spec) {
 const DISK_FIELDS = ['id', 'idx', 'name', 'device', 'size', 'status', 'type', 'temp', 'rotational',
   'numErrors', 'numReads', 'numWrites', 'fsSize', 'fsFree', 'fsUsed', 'fsType', 'exportable', 'color', 'transport'];
 
-export async function queryArray() {
-  const arrayType = fieldType('Query', 'array');
-  const diskType = fieldType(arrayType, 'disks') || 'ArrayDisk';
-  const capType = fieldType(arrayType, 'capacity');
-  const spec = [
-    'state',
-    { name: 'capacity', fields: [{ name: 'kilobytes', fields: ['free', 'used', 'total'] }, { name: 'disks', fields: ['free', 'used', 'total'] }] },
-    { name: 'parities', fields: DISK_FIELDS },
-    { name: 'disks', fields: DISK_FIELDS },
-    { name: 'caches', fields: DISK_FIELDS },
-  ];
-  // capType può non avere kilobytes → sel() lo scarta da solo
-  void capType; void diskType;
-  const s = sel(arrayType, spec);
-  const data = await gqlRequest(`query { array { ${s} } }`);
-  return data.array;
+export function queryArray() {
+  return gqlAdaptive(async () => {
+    const arrayType = fieldType('Query', 'array');
+    const spec = [
+      'state',
+      { name: 'capacity', fields: [{ name: 'kilobytes', fields: ['free', 'used', 'total'] }, { name: 'disks', fields: ['free', 'used', 'total'] }] },
+      { name: 'parities', fields: DISK_FIELDS },
+      { name: 'disks', fields: DISK_FIELDS },
+      { name: 'caches', fields: DISK_FIELDS },
+    ];
+    const s = sel(arrayType, spec);
+    const data = await gqlRequest(`query { array { ${s} } }`);
+    return data.array;
+  });
 }
 
-export async function queryDisks() {
-  const diskType = fieldType('Query', 'disks');
-  const s = sel(diskType, ['device', 'name', 'vendor', 'size', 'temperature', 'smartStatus', 'serialNum', 'interfaceType', 'rotational', 'type']);
-  const data = await gqlRequest(`query { disks { ${s} } }`);
-  return data.disks;
+export function queryDisks() {
+  return gqlAdaptive(async () => {
+    const diskType = fieldType('Query', 'disks');
+    const s = sel(diskType, ['device', 'name', 'vendor', 'size', 'temperature', 'smartStatus', 'serialNum', 'interfaceType', 'rotational', 'type']);
+    const data = await gqlRequest(`query { disks { ${s} } }`);
+    return data.disks;
+  });
 }
 
-export async function queryPools() {
-  const poolType = fieldType('Query', 'pools');
-  const s = sel(poolType, ['name', 'status', 'state', 'health', 'size', 'used', 'free', 'devices', 'fsType']);
-  if (!s) throw new Error('pools non esposto dallo schema');
-  const data = await gqlRequest(`query { pools { ${s} } }`);
-  return data.pools;
+export function queryPools() {
+  return gqlAdaptive(async () => {
+    const poolType = fieldType('Query', 'pools');
+    const s = sel(poolType, ['name', 'status', 'state', 'health', 'size', 'used', 'free', 'devices', 'fsType']);
+    if (!s) throw new Error('pools non esposto dallo schema');
+    const data = await gqlRequest(`query { pools { ${s} } }`);
+    return data.pools;
+  });
 }
 
-export async function queryShares() {
-  const shareType = fieldType('Query', 'shares');
-  const s = sel(shareType, ['name', 'free', 'used', 'size', 'comment', 'cache', 'exclusive', 'include', 'exclude']);
-  const data = await gqlRequest(`query { shares { ${s} } }`);
-  return data.shares;
+export function queryShares() {
+  return gqlAdaptive(async () => {
+    const shareType = fieldType('Query', 'shares');
+    const s = sel(shareType, ['name', 'free', 'used', 'size', 'comment', 'cache', 'exclusive', 'include', 'exclude']);
+    const data = await gqlRequest(`query { shares { ${s} } }`);
+    return data.shares;
+  });
 }
 
-export async function queryInfo() {
-  const infoType = fieldType('Query', 'info');
-  const spec = [
-    { name: 'os', fields: ['platform', 'distro', 'release', 'uptime', 'hostname'] },
-    { name: 'cpu', fields: ['manufacturer', 'brand', 'cores', 'threads'] },
-    { name: 'memory', fields: ['total', 'free', 'used', 'available', 'active'] },
-    { name: 'versions', fields: ['unraid', 'kernel', 'docker'] },
-  ];
-  const s = sel(infoType, spec);
-  const data = await gqlRequest(`query { info { ${s} } }`);
-  return data.info;
+export function queryInfo() {
+  return gqlAdaptive(async () => {
+    const infoType = fieldType('Query', 'info');
+    const spec = [
+      { name: 'os', fields: ['platform', 'distro', 'release', 'uptime', 'hostname'] },
+      { name: 'cpu', fields: ['manufacturer', 'brand', 'cores', 'threads'] },
+      { name: 'memory', fields: ['total', 'free', 'used', 'available', 'active'] },
+      { name: 'versions', fields: ['unraid', 'kernel', 'docker'] },
+    ];
+    const s = sel(infoType, spec);
+    const data = await gqlRequest(`query { info { ${s} } }`);
+    return data.info;
+  });
 }
 
-export async function queryVms() {
-  const vmsType = fieldType('Query', 'vms');
-  const domType = fieldType(vmsType, 'domain') || fieldType(vmsType, 'domains');
-  const domField = fieldType(vmsType, 'domain') ? 'domain' : (fieldType(vmsType, 'domains') ? 'domains' : null);
-  if (!domField) throw new Error('vms.domain non esposto dallo schema');
-  const s = sel(domType, ['uuid', 'name', 'state']);
-  const data = await gqlRequest(`query { vms { ${domField} { ${s} } } }`);
-  return data.vms?.[domField] || [];
+export function queryVms() {
+  return gqlAdaptive(async () => {
+    const vmsType = fieldType('Query', 'vms');
+    const domType = fieldType(vmsType, 'domain') || fieldType(vmsType, 'domains');
+    const domField = fieldType(vmsType, 'domain') ? 'domain' : (fieldType(vmsType, 'domains') ? 'domains' : null);
+    if (!domField) throw new Error('vms.domain non esposto dallo schema');
+    const s = sel(domType, ['uuid', 'name', 'state']);
+    const data = await gqlRequest(`query { vms { ${domField} { ${s} } } }`);
+    return data.vms?.[domField] || [];
+  });
 }
 
 // ---- Mutations ----
