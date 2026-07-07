@@ -17,7 +17,7 @@ import { statsHistory } from '../docker/stats-hub.js';
 import { serveIcon } from '../docker/icons.js';
 import { updateContainer, findDependents, checkAllUpdates, checkOneUpdate, allCachedResults } from '../docker/updates.js';
 import * as poller from '../unraid/poller.js';
-import { energyOverview, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
+import { energyOverview, energyBreakdown, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
 
 export function buildRouter() {
   const r = Router();
@@ -294,6 +294,10 @@ export function buildRouter() {
       out.presets = getEnergyConfig().presets;
       res.json(out);
     } catch (e) { next(e); }
+  });
+
+  r.get('/unraid/energy/breakdown', (req, res, next) => {
+    try { res.json(energyBreakdown(req.query.granularity || 'day')); } catch (e) { next(e); }
   });
 
   r.post('/unraid/energy/config', actionLimiter, (req, res, next) => {

@@ -333,13 +333,13 @@ function startPolling() {
     runSection('vms', async () => (await ssh.sshVms()).map(normVm), 60000);
   }
 
-  // UPS (60s) — TCP diretto, nessun mount necessario
+  // UPS (10s, near-real-time) — TCP diretto, nessun mount necessario
   runSection('ups', async () => {
     const ups = await upsStatus();
     checkUpsAlarms(ups);
     recordPowerSample(ups?.watts ?? null);
     return ups;
-  }, 60000);
+  }, config.pollUps);
 }
 
 function restartPolling() {

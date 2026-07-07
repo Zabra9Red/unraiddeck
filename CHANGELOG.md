@@ -2,6 +2,12 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.6.0] — 2026-07-07
+
+### Aggiunto
+- **UPS quasi in tempo reale**: poll ogni 10 s (era 60 s), configurabile con `POLL_UPS`; stato e potenza arrivano in UI via socket a ogni poll.
+- **Storico consumi per giorno / settimana / mese / anno** con costo per periodo (`GET /api/unraid/energy/breakdown?granularity=day|week|month|year`), selettore nella card UPS. I dati restano in SQLite su `/config` e sopravvivono a riavvii di container e host (retention 2 anni).
+
 ## [1.5.0] — 2026-07-07
 
 ### Aggiunto

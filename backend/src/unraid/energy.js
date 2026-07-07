@@ -111,3 +111,31 @@ export function energyOverview(hours = 24) {
 
   return { config: { pricePerKwh: cfg.pricePerKwh, provider: cfg.provider }, kwh, cost, series };
 }
+
+// Ripartizione per giorno/settimana/mese/anno (ora locale del container, TZ)
+// con costo per periodo se il prezzo è configurato.
+const BREAKDOWN = {
+  day: { fmt: '%Y-%m-%d', limit: 31 },
+  week: { fmt: '%Y-W%W', limit: 26 },
+  month: { fmt: '%Y-%m', limit: 24 },
+  year: { fmt: '%Y', limit: 20 },
+};
+
+export function energyBreakdown(granularity = 'day') {
+  const g = BREAKDOWN[granularity];
+  if (!g) {
+    const err = new Error('Granularità non valida (day|week|month|year)');
+    err.status = 400;
+    throw err;
+  }
+  const rows = db.prepare(
+    `SELECT strftime('${g.fmt}', hour * 3600, 'unixepoch', 'localtime') AS period,
+            SUM(wh) / 1000.0 AS kwh
+     FROM ups_energy GROUP BY period ORDER BY period DESC LIMIT ?`).all(g.limit);
+  const price = getSetting('energy.pricePerKwh', null);
+  return rows.map(r => ({
+    period: r.period,
+    kwh: Math.round(r.kwh * 1000) / 1000,
+    cost: price != null ? Math.round(r.kwh * price * 100) / 100 : null,
+  }));
+}

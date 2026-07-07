@@ -12,12 +12,32 @@ import { t, fmtBytes, fmtUptime, fmtTs } from '../i18n.js';
 
 // Consumo elettrico UPS: potenza integrata lato backend (Wh/ora in SQLite),
 // costo calcolato col prezzo €/kWh scelto (preset fornitori IT o manuale).
+// Etichette periodo leggibili: '2026-07-07' → 07/07, '2026-W27' → sett. 27, ecc.
+function fmtPeriod(period, gran) {
+  if (gran === 'day') {
+    const [y, m, d] = period.split('-');
+    return `${d}/${m}/${y.slice(2)}`;
+  }
+  if (gran === 'week') {
+    const [y, w] = period.split('-W');
+    return `sett. ${Number(w)} '${y.slice(2)}`;
+  }
+  if (gran === 'month') {
+    const [y, m] = period.split('-');
+    const mesi = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+    return `${mesi[Number(m) - 1]} ${y}`;
+  }
+  return period;
+}
+
 function EnergyPanel({ ups }) {
   const toast = useToast();
   const [data, setData] = useState(null);
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
   const [saving, setSaving] = useState(false);
+  const [gran, setGran] = useState(null);       // null = storico chiuso
+  const [breakdown, setBreakdown] = useState(null);
 
   const load = () => api.get('/unraid/energy?hours=24').then((d) => {
     setData(d);
@@ -45,6 +65,14 @@ function EnergyPanel({ ups }) {
     const preset = data?.presets?.find((p) => p.id === e.target.value);
     if (preset) { setPrice(String(preset.price)); setProvider(preset.label); }
     else setProvider('');
+  };
+
+  const openBreakdown = async (g) => {
+    if (gran === g) { setGran(null); setBreakdown(null); return; }
+    setGran(g);
+    setBreakdown(null);
+    try { setBreakdown(await api.get(`/unraid/energy/breakdown?granularity=${g}`)); }
+    catch (e) { setGran(null); toast.error(t.energyTitle, e.message); }
   };
 
   if (!data) return null;
@@ -93,6 +121,39 @@ function EnergyPanel({ ups }) {
               height={80}
             />
           )}
+
+          {/* Storico per giorno/settimana/mese/anno con costi */}
+          <div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-subtext0 mr-1">{t.energyBreakdown}:</span>
+              {[['day', t.energyGranDay], ['week', t.energyGranWeek], ['month', t.energyGranMonth], ['year', t.energyGranYear]].map(([g, label]) => (
+                <button
+                  key={g}
+                  onClick={() => openBreakdown(g)}
+                  className={`px-2 py-0.5 rounded-md border transition-colors ${gran === g ? 'border-yellow text-yellow bg-yellow/10' : 'border-surface1 text-subtext0 hover:border-overlay0'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {gran && !breakdown && <div className="py-2"><Spinner /></div>}
+            {gran && breakdown && (
+              breakdown.length ? (
+                <div className="mt-2 max-h-44 overflow-y-auto pr-1 space-y-0.5">
+                  {breakdown.map((row) => (
+                    <div key={row.period} className="flex items-center justify-between text-xs bg-mantle border border-surface0 rounded-md px-2 py-1">
+                      <span className="text-subtext1">{fmtPeriod(row.period, gran)}</span>
+                      <span className="flex gap-3">
+                        <span>{fmtK(row.kwh)}</span>
+                        <span className="text-yellow w-14 text-right">{row.cost != null ? fmtE(row.cost) : '—'}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : <div className="text-xs text-overlay0 mt-2">—</div>
+            )}
+          </div>
+          <div className="text-[11px] text-overlay0">{t.energyPersistNote}</div>
         </>
       )}
 

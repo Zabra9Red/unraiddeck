@@ -48,9 +48,10 @@ export const config = {
   pollArray: parseDuration(env.POLL_ARRAY, 30000),
   pollDisks: parseDuration(env.POLL_DISKS, 60000),
   pollShares: parseDuration(env.POLL_SHARES, 300000),
+  pollUps: parseDuration(env.POLL_UPS, 10000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.5.0',
+  version: env.UNRAIDDECK_VERSION || '1.6.0',
 };
 
 export default config;
