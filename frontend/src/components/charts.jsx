@@ -147,4 +147,98 @@ export function ContainerCharts({ history }) {
   );
 }
 
+// Gauge radiale (stile Grafana): arco 240°, colore a soglie, valore al centro.
+export function GaugeArc({ value, max = 100, label, unit = '%', thresholds, size = 130 }) {
+  const v = Math.max(0, Math.min(max, value ?? 0));
+  const frac = v / max;
+  // Soglie [{upTo, color}] valutate in ordine; default: verde fisso
+  const color = (thresholds || []).find((th) => frac <= th.upTo)?.color || thresholds?.at(-1)?.color || '#a6e3a1';
+  const cx = size / 2, cy = size / 2, r = size / 2 - 10;
+  const a0 = -210, a1 = 30; // 240° di corsa
+  const polar = (deg) => {
+    const rad = (deg * Math.PI) / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  };
+  const arc = (from, to) => {
+    const [x0, y0] = polar(from);
+    const [x1, y1] = polar(to);
+    return `M${x0.toFixed(1)},${y0.toFixed(1)} A${r},${r} 0 ${to - from > 180 ? 1 : 0} 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  };
+  const aVal = a0 + (a1 - a0) * frac;
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size * 0.82} viewBox={`0 0 ${size} ${size * 0.82}`} role="img" aria-label={`${label}: ${value ?? '—'}${unit}`}>
+        <path d={arc(a0, a1)} fill="none" stroke="#313244" strokeWidth="9" strokeLinecap="round" />
+        {value != null && frac > 0.005 && (
+          <path d={arc(a0, aVal)} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" />
+        )}
+        <text x={cx} y={cy + 2} textAnchor="middle" fontSize={size / 5.2} fontWeight="600" fill="#cdd6f4">
+          {value != null ? Math.round(value) : '—'}{unit}
+        </text>
+        <text x={cx} y={cy + size / 5.2} textAnchor="middle" fontSize="10" fill={C.text}>{label}</text>
+      </svg>
+    </div>
+  );
+}
+
+// Bar chart per consumi/costi periodici (stile pannello Grafana): barre kWh,
+// tooltip con costo, etichette x sparse.
+export function BarPanel({ title, points, valueFmt = (v) => String(v), costFmt, height = 120 }) {
+  const [hover, setHover] = useState(null);
+  const w = 560, h = height;
+  const max = Math.max(...(points || []).map((p) => p.kwh), 0.001);
+  const n = points?.length || 0;
+  const step = n ? w / n : w;
+  const bw = Math.max(2, step * 0.68);
+  const hp = hover != null ? points[hover] : null;
+  const labelEvery = Math.max(1, Math.ceil(n / 8));
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-xs font-medium text-subtext0">{title}</span>
+        <span className="text-[11px] text-subtext0 h-4">
+          {hp ? <>{hp.label}: <span className="text-text">{valueFmt(hp.kwh)}</span>{hp.cost != null && costFmt ? <span className="text-yellow"> · {costFmt(hp.cost)}</span> : null}</> : null}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="w-full block rounded-md bg-mantle border border-surface0"
+        style={{ height: h }}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const idx = Math.floor(((e.clientX - rect.left) / rect.width) * n);
+          setHover(Math.max(0, Math.min(n - 1, idx)));
+        }}
+        onMouseLeave={() => setHover(null)}
+        role="img"
+        aria-label={title}
+      >
+        {[0.25, 0.5, 0.75].map((f) => (
+          <line key={f} x1="0" x2={w} y1={h * f} y2={h * f} stroke={C.grid} strokeWidth="1" />
+        ))}
+        {(points || []).map((p, i) => {
+          const bh = Math.max(1, (p.kwh / max) * (h - 22));
+          return (
+            <g key={p.label}>
+              <rect
+                x={i * step + (step - bw) / 2}
+                y={h - 14 - bh}
+                width={bw}
+                height={bh}
+                rx="1.5"
+                fill="#f9e2af"
+                opacity={hover === i ? 1 : 0.75}
+              />
+              {i % labelEvery === 0 && (
+                <text x={i * step + step / 2} y={h - 3} textAnchor="middle" fontSize="9" fill={C.text}>{p.tick ?? p.label}</text>
+              )}
+            </g>
+          );
+        })}
+        <text x="4" y="12" fontSize="10" fill={C.text}>{valueFmt(max)}</text>
+      </svg>
+    </div>
+  );
+}
+
 export const chartColors = C;

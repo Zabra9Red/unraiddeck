@@ -6,6 +6,7 @@ import { getSocket, disconnectSocket } from './socket.js';
 import { Login, Setup } from './views/Login.jsx';
 import { DockerView } from './views/DockerView.jsx';
 import { UnraidView } from './views/UnraidView.jsx';
+import { EnergyView } from './views/EnergyView.jsx';
 import { SettingsView } from './views/SettingsView.jsx';
 import { AuditView } from './views/AuditView.jsx';
 import { NotificationsBell } from './components/NotificationsBell.jsx';
@@ -62,6 +63,7 @@ export default function App() {
   const tabs = [
     ['docker', t.tabDocker],
     ['unraid', t.tabUnraid],
+    ['energy', t.tabEnergy],
     ['audit', t.tabAudit],
     ['settings', t.tabSettings],
   ];
@@ -114,6 +116,7 @@ export default function App() {
       <main className="grow max-w-[1400px] w-full mx-auto px-4 py-4">
         {tab === 'docker' && <DockerView />}
         {tab === 'unraid' && <UnraidView />}
+        {tab === 'energy' && <EnergyView />}
         {tab === 'audit' && <AuditView />}
         {tab === 'settings' && <SettingsView me={me} onLogout={logout} />}
       </main>

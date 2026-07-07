@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.7.0] — 2026-07-07
+
+### Aggiunto
+- **Tab "Energia"**: dashboard UPS in stile Grafana — tiles consumo/costo (oggi, ieri, 7g, 30g, anno, stima annua, costo medio giornaliero), gauge radiali batteria e carico, potenza attuale in tempo reale via socket, grafico potenza 24h, bar chart consumo giornaliero (30 gg) e mensile (12 mesi) con costi al passaggio del mouse, configurazione prezzo €/kWh. La sezione energia lascia la card UPS della tab Unraid (che mantiene stato e diagnostica) e vive nella nuova tab.
+
 ## [1.6.1] — 2026-07-07
 
 ### Corretto
