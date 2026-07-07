@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.9.0] — 2026-07-08
+
+### Aggiunto
+- **Allarmi consumo** (tab Energia): soglia potenza in W (isteresi −10 %) e limite giornaliero in kWh (una notifica al giorno, con costo). Le notifiche arrivano in-app e sul webhook.
+- **Supporto ntfy nativo**: se `NOTIFY_WEBHOOK_URL` punta a ntfy (auto-rilevato, o forzato con `NOTIFY_WEBHOOK_TYPE=ntfy`) la notifica usa il formato nativo (titolo "UnraidDeck: …", priorità, tag) → push puliti su iPhone/Android con l'app ufficiale gratuita. Guida nel README.
+- **La tab attiva sopravvive al refresh** (hash URL + localStorage): niente ritorno forzato alla home.
+
 ## [1.8.0] — 2026-07-08
 
 ### Aggiunto

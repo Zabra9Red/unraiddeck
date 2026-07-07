@@ -42,6 +42,7 @@ export const config = {
   updateVerifyTimeout: env.UPDATE_VERIFY_TIMEOUT ? parseDuration(env.UPDATE_VERIFY_TIMEOUT, null) : null, // null = auto
 
   notifyWebhookUrl: env.NOTIFY_WEBHOOK_URL || null,
+  notifyWebhookType: (env.NOTIFY_WEBHOOK_TYPE || '').toLowerCase() || null, // 'ntfy' | 'json' | null = auto dal hostname
 
   // Intervalli polling fallback SSH (spec §5), override via env
   pollSystem: parseDuration(env.POLL_SYSTEM, 5000),
@@ -51,7 +52,7 @@ export const config = {
   pollUps: parseDuration(env.POLL_UPS, 10000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.8.0',
+  version: env.UNRAIDDECK_VERSION || '1.9.0',
 };
 
 export default config;

@@ -34,28 +34,39 @@ export function alarmClear(key) {
   db.prepare('UPDATE notif_state SET active = 0 WHERE key = ?').run(key);
 }
 
-// Webhook generico: POST JSON compatibile Gotify/ntfy/Discord tramite campi multipli.
+// Webhook: per ntfy (hostname "ntfy*" o NOTIFY_WEBHOOK_TYPE=ntfy) usa il
+// formato nativo (testo + header X-Title/X-Priority), così la notifica su
+// iPhone/Android è pulita; per il resto POST JSON compatibile Gotify/Discord.
 async function sendWebhook(notif) {
   const url = config.notifyWebhookUrl;
   if (!url) return;
-  const priority = { info: 3, warning: 6, error: 9 }[notif.severity] ?? 3;
-  const payload = {
-    // campi generici
-    key: notif.key, severity: notif.severity, ts: notif.ts,
-    // Gotify / ntfy
-    title: notif.title, message: notif.body || notif.title, priority,
-    // Discord
-    content: `**${notif.title}**${notif.body ? '\n' + notif.body : ''}`,
-  };
+  const priority = { info: 3, warning: 4, error: 5 }[notif.severity] ?? 3;
+  const isNtfy = config.notifyWebhookType === 'ntfy'
+    || (config.notifyWebhookType !== 'json' && /(^|\.)ntfy\./i.test(new URL(url).hostname));
+  let headers, body;
+  if (isNtfy) {
+    headers = {
+      'content-type': 'text/plain; charset=utf-8',
+      'x-title': `UnraidDeck: ${notif.title}`,
+      'x-priority': String(priority),
+      'x-tags': notif.severity === 'error' ? 'rotating_light' : notif.severity === 'warning' ? 'warning' : 'information_source',
+    };
+    body = notif.body || notif.title;
+  } else {
+    headers = { 'content-type': 'application/json' };
+    body = JSON.stringify({
+      // campi generici
+      key: notif.key, severity: notif.severity, ts: notif.ts,
+      // Gotify / ntfy (self-hosted via JSON)
+      title: notif.title, message: notif.body || notif.title, priority: { info: 3, warning: 6, error: 9 }[notif.severity] ?? 3,
+      // Discord
+      content: `**${notif.title}**${notif.body ? '\n' + notif.body : ''}`,
+    });
+  }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 10000);
   try {
-    await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: ctrl.signal,
-    });
+    await fetch(url, { method: 'POST', headers, body, signal: ctrl.signal });
   } finally {
     clearTimeout(t);
   }

@@ -13,10 +13,29 @@ import { NotificationsBell } from './components/NotificationsBell.jsx';
 import { Spinner } from './components/ui.jsx';
 import { t } from './i18n.js';
 
+const TAB_IDS = ['docker', 'unraid', 'energy', 'audit', 'settings'];
+
+// Tab iniziale: hash URL (#energy) > localStorage > default. Così il refresh
+// (e il ripristino della PWA) restano sulla tab aperta.
+function initialTab() {
+  const h = window.location.hash.replace('#', '');
+  if (TAB_IDS.includes(h)) return h;
+  const saved = localStorage.getItem('unraiddeck.tab');
+  return TAB_IDS.includes(saved) ? saved : 'docker';
+}
+
 export default function App() {
   const [phase, setPhase] = useState('loading'); // loading | setup | login | app
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('docker');
+  const [tab, setTab] = useState(initialTab);
+
+  const selectTab = (id) => {
+    setTab(id);
+    try {
+      history.replaceState(null, '', `#${id}`);
+      localStorage.setItem('unraiddeck.tab', id);
+    } catch { /* storage non disponibile */ }
+  };
 
   const boot = async () => {
     try {
@@ -92,7 +111,7 @@ export default function App() {
             {tabs.map(([id, label]) => (
               <button
                 key={id}
-                onClick={() => setTab(id)}
+                onClick={() => selectTab(id)}
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer ${tab === id ? 'bg-surface0 text-text' : 'text-subtext0 hover:text-text hover:bg-surface0/50'}`}
               >
                 {label}

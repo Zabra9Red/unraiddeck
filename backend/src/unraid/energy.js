@@ -3,6 +3,7 @@
 // Preset dei principali fornitori italiani = prezzi INDICATIVI, sempre
 // modificabili: fa fede la bolletta dell'utente.
 import { db, getSetting, setSetting } from '../core/db.js';
+import { notify, alarmActive, alarmClear } from '../core/notify.js';
 
 export const PRICE_PRESETS = [
   { id: 'arera', label: 'ARERA — Maggior Tutela', price: 0.25 },
@@ -46,6 +47,7 @@ export function recordPowerSample(watts) {
     }
   }
   lastSample = watts != null ? { ts: now, watts } : null;
+  checkEnergyAlarms(watts);
 
   // Retention: pulizia ~ogni 24h di campioni (poll a 60s)
   if (++pruneCounter >= 1440) {
@@ -55,15 +57,55 @@ export function recordPowerSample(watts) {
   }
 }
 
+// Allarmi soglia: potenza istantanea (isteresi -10%) e consumo giornaliero
+// (una notifica al giorno, chiave datata). Arrivano in-app + webhook (ntfy…).
+function checkEnergyAlarms(watts) {
+  const aw = getSetting('energy.alertWatts', null);
+  if (aw != null && watts != null) {
+    const key = 'energy-watts';
+    if (watts > aw) {
+      if (!alarmActive(key)) notify(key, 'warning', 'Consumo elevato', `Potenza ${Math.round(watts)} W oltre la soglia di ${aw} W`);
+    } else if (watts < aw * 0.9 && alarmActive(key)) {
+      alarmClear(key);
+    }
+  }
+  const ak = getSetting('energy.alertDailyKwh', null);
+  if (ak != null) {
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    const kwh = sumKwh(midnight.getTime());
+    if (kwh > ak) {
+      const dkey = `energy-daily-${new Date().toISOString().slice(0, 10)}`;
+      if (!alarmActive(dkey)) {
+        const price = getSetting('energy.pricePerKwh', null);
+        const costStr = price != null ? ` (${(kwh * price).toFixed(2)} €)` : '';
+        notify(dkey, 'warning', 'Limite giornaliero superato', `Consumo di oggi ${kwh.toFixed(2)} kWh${costStr}, oltre il limite di ${ak} kWh`);
+      }
+    }
+  }
+}
+
 export function getEnergyConfig() {
   return {
     pricePerKwh: getSetting('energy.pricePerKwh', null),
     provider: getSetting('energy.provider', null),
+    alertWatts: getSetting('energy.alertWatts', null),
+    alertDailyKwh: getSetting('energy.alertDailyKwh', null),
     presets: PRICE_PRESETS,
   };
 }
 
-export function setEnergyConfig({ pricePerKwh, provider }) {
+function numOrNull(v, max, label) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0 || n > max) {
+    const err = new Error(`${label} non valido (0–${max})`);
+    err.status = 400;
+    throw err;
+  }
+  return n;
+}
+
+export function setEnergyConfig({ pricePerKwh, provider, alertWatts, alertDailyKwh }) {
   const p = Number(pricePerKwh);
   if (!Number.isFinite(p) || p < 0 || p > 5) {
     const err = new Error('Prezzo €/kWh non valido (0–5)');
@@ -72,6 +114,8 @@ export function setEnergyConfig({ pricePerKwh, provider }) {
   }
   setSetting('energy.pricePerKwh', p);
   setSetting('energy.provider', typeof provider === 'string' ? provider.slice(0, 60) : null);
+  setSetting('energy.alertWatts', numOrNull(alertWatts, 100000, 'Soglia potenza (W)'));
+  setSetting('energy.alertDailyKwh', numOrNull(alertDailyKwh, 1000, 'Limite giornaliero (kWh)'));
   return getEnergyConfig();
 }
 

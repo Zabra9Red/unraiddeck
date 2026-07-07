@@ -104,12 +104,16 @@ export function EnergyView() {
   const [months, setMonths] = useState(null);
   const [price, setPrice] = useState('');
   const [provider, setProvider] = useState('');
+  const [alertWatts, setAlertWatts] = useState('');
+  const [alertDailyKwh, setAlertDailyKwh] = useState('');
   const [saving, setSaving] = useState(false);
 
   const loadEnergy = () => api.get('/unraid/energy?hours=24').then((d) => {
     setEnergy(d);
     setPrice((p) => p === '' && d.config.pricePerKwh != null ? String(d.config.pricePerKwh) : p);
     setProvider((pr) => pr === '' && d.config.provider ? d.config.provider : pr);
+    setAlertWatts((v) => v === '' && d.config.alertWatts != null ? String(d.config.alertWatts) : v);
+    setAlertDailyKwh((v) => v === '' && d.config.alertDailyKwh != null ? String(d.config.alertDailyKwh) : v);
   }).catch(() => {});
   const loadBreakdowns = () => {
     api.get('/unraid/energy/breakdown?granularity=day').then(setDays).catch(() => {});
@@ -133,7 +137,12 @@ export function EnergyView() {
   const save = async () => {
     setSaving(true);
     try {
-      await api.post('/unraid/energy/config', { pricePerKwh: parseFloat(price), provider });
+      await api.post('/unraid/energy/config', {
+        pricePerKwh: parseFloat(price),
+        provider,
+        alertWatts: alertWatts === '' ? null : parseFloat(alertWatts),
+        alertDailyKwh: alertDailyKwh === '' ? null : parseFloat(alertDailyKwh),
+      });
       toast.ok(t.energyTitle, t.energySaved);
       await loadEnergy();
       loadBreakdowns();
@@ -269,6 +278,30 @@ export function EnergyView() {
         </div>
         <div className="text-[11px] text-overlay0 mt-2">{t.energyDisclaimer}</div>
         <div className="text-[11px] text-overlay0 mt-1">{t.energyPersistNote}</div>
+
+        {/* Allarmi soglia (notifica in-app + webhook/ntfy) */}
+        <div className="border-t border-surface0 mt-3 pt-3">
+          <div className="text-xs font-medium text-subtext0 mb-2">{t.energyAlerts}</div>
+          <div className="flex flex-wrap items-end gap-2">
+            <Input
+              label={t.energyAlertWatts}
+              type="number" min="1" step="1" inputMode="numeric" placeholder="es. 500"
+              value={alertWatts}
+              onChange={(e) => setAlertWatts(e.target.value)}
+              className="max-w-32"
+            />
+            <Input
+              label={t.energyAlertDailyKwh}
+              type="number" min="0.1" step="0.1" inputMode="decimal" placeholder="es. 5"
+              value={alertDailyKwh}
+              onChange={(e) => setAlertDailyKwh(e.target.value)}
+              className="max-w-32"
+            />
+            <Btn size="sm" onClick={save} disabled={saving || price === ''}>{t.energySave}</Btn>
+          </div>
+          <div className="text-[11px] text-overlay0 mt-2">{t.energyAlertsHint}</div>
+          <div className="text-[11px] text-overlay0 mt-1">{t.energyNtfyHint}</div>
+        </div>
       </Card>
     </div>
   );

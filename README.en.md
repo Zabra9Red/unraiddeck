@@ -89,8 +89,20 @@ Optional mount of the `/var/run/libvirt` **directory** (already wired in the tem
 | `TRUST_PROXY` | — | `true`/IP behind reverse proxy (`Secure` cookies, real IPs in rate-limit) |
 | `UPDATE_CHECK_INTERVAL` | `6h` | update checks (with jitter) |
 | `UPDATE_VERIFY_TIMEOUT` | auto | post-update verification override (default health-check-aware) |
-| `NOTIFY_WEBHOOK_URL` | — | JSON webhook (Gotify/ntfy/Discord) |
+| `NOTIFY_WEBHOOK_URL` | — | notification webhook (native ntfy auto-detected; JSON for Gotify/Discord) |
+| `NOTIFY_WEBHOOK_TYPE` | auto | force `ntfy` (self-hosted on a custom domain) or `json` |
+| `POLL_UPS` | `10s` | UPS/power polling interval |
 | `TZ` | `Europe/Rome` | |
+
+---
+
+## Push notifications on your phone (free, no paid third-party apps)
+
+Every UnraidDeck notification (consumption alerts, hot disks, UPS on battery, available updates…) can reach your **iPhone/Android** through [ntfy](https://ntfy.sh) — a free, open-source app on the **official App Store / Play Store**:
+
+1. Install **ntfy** from the store and subscribe to a topic with an unguessable name (e.g. `unraiddeck-x7k2m9` — topics are public, the name acts as the password).
+2. Set `NOTIFY_WEBHOOK_URL=https://ntfy.sh/unraiddeck-x7k2m9` on the container (the ntfy format is auto-detected).
+3. In the **Energy tab → Consumption alerts** set the **power threshold (W)** and/or the **daily limit (kWh)**: crossing them triggers the push (power with −10 % hysteresis, daily limit once per day).
 
 ---
 
