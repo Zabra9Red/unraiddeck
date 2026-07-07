@@ -120,6 +120,18 @@ export default function App() {
         {tab === 'audit' && <AuditView />}
         {tab === 'settings' && <SettingsView me={me} onLogout={logout} />}
       </main>
+
+      {/* Footer: versione corrente (allineata alle release GitHub) */}
+      <footer className="text-center py-3 border-t border-surface0">
+        <a
+          href="https://github.com/Zabra9Red/unraiddeck/releases"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-overlay0 hover:text-subtext0 transition-colors"
+        >
+          {t.appName} v{me?.version}
+        </a>
+      </footer>
     </div>
   );
 }

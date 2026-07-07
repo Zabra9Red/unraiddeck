@@ -2,6 +2,14 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.7.1] — 2026-07-07
+
+### Aggiunto
+- **Footer con versione corrente** centrato in fondo alla UI, link alle release GitHub.
+
+### Corretto
+- L'immagine Docker ora riceve davvero la versione dal tag di release (`ARG UNRAIDDECK_VERSION` mancante nel Dockerfile): la versione mostrata coincide sempre con la release GitHub.
+
 ## [1.7.0] — 2026-07-07
 
 ### Aggiunto

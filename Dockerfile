@@ -16,9 +16,11 @@ RUN npm run build
 
 # ---- Stage runtime: solo artefatti + tini (PID 1) ----
 FROM node:22-alpine
+ARG UNRAIDDECK_VERSION
 RUN apk add --no-cache tini
 ENV NODE_ENV=production \
-    TZ=Europe/Rome
+    TZ=Europe/Rome \
+    UNRAIDDECK_VERSION=${UNRAIDDECK_VERSION}
 
 WORKDIR /app
 COPY --from=build /app/backend/node_modules ./backend/node_modules
