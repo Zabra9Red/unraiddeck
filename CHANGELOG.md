@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.9.1] — 2026-07-08
+
+### Corretto
+- Il webhook ora considera errore le risposte HTTP non-2xx e le logga con lo status (`[notify] webhook fallito: HTTP 404 …`), prima passavano in silenzio.
+
 ## [1.9.0] — 2026-07-08
 
 ### Aggiunto

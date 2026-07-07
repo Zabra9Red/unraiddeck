@@ -66,7 +66,8 @@ async function sendWebhook(notif) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 10000);
   try {
-    await fetch(url, { method: 'POST', headers, body, signal: ctrl.signal });
+    const res = await fetch(url, { method: 'POST', headers, body, signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status} da ${new URL(url).hostname}${isNtfy ? ' (formato ntfy)' : ''}`);
   } finally {
     clearTimeout(t);
   }
