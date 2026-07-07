@@ -104,6 +104,11 @@ CREATE TABLE IF NOT EXISTS update_journal (
   started_at INTEGER NOT NULL,
   finished_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS ups_energy (
+  hour INTEGER PRIMARY KEY,
+  wh REAL NOT NULL DEFAULT 0,
+  samples INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS icon_cache (
   url_hash TEXT PRIMARY KEY,
   url TEXT NOT NULL,

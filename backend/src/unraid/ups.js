@@ -88,29 +88,50 @@ export async function upsStatus() {
 
   const tryApc = async () => {
     const kv = await apcStatus(host);
+    const loadPct = parseFloat(kv.LOADPCT) || null;
+    // apcupsd non misura i watt: NOMPOWER (W nominali) × carico %
+    const nomPower = parseFloat(kv.NOMPOWER) || null;
+    const watts = nomPower != null && loadPct != null ? Math.round(nomPower * loadPct) / 100 : null;
     return {
       mode: 'apc',
       model: kv.MODEL || kv.UPSNAME || null,
       status: kv.STATUS || null,                       // ONLINE | ONBATT | ...
       onBattery: /ONBATT/i.test(kv.STATUS || ''),
       chargePct: parseFloat(kv.BCHARGE) || null,
-      loadPct: parseFloat(kv.LOADPCT) || null,
+      loadPct,
       runtimeMin: parseFloat(kv.TIMELEFT) || null,
       lineV: parseFloat(kv.LINEV) || null,
+      watts,
+      wattsSource: watts != null ? 'stimata' : null,   // nominale × carico
     };
   };
   const tryNut = async () => {
     const { upsName, vars } = await nutRequest(host);
     const status = vars['ups.status'] || null;         // OL | OB | LB ...
+    const loadPct = parseFloat(vars['ups.load']) || null;
+    // Preferenza: ups.realpower (W misurati) > realpower.nominal × carico >
+    // power.nominal (VA) × carico × PF 0.8 stimato
+    let watts = null, wattsSource = null;
+    if (vars['ups.realpower'] !== undefined && !Number.isNaN(parseFloat(vars['ups.realpower']))) {
+      watts = parseFloat(vars['ups.realpower']);
+      wattsSource = 'misurata';
+    } else if (loadPct != null) {
+      const nomW = parseFloat(vars['ups.realpower.nominal']);
+      const nomVa = parseFloat(vars['ups.power.nominal']);
+      if (!Number.isNaN(nomW)) { watts = nomW * loadPct / 100; wattsSource = 'stimata'; }
+      else if (!Number.isNaN(nomVa)) { watts = nomVa * 0.8 * loadPct / 100; wattsSource = 'stimata'; }
+    }
     return {
       mode: 'nut',
       model: vars['device.model'] || upsName,
       status,
       onBattery: /\bOB\b/.test(status || ''),
       chargePct: parseFloat(vars['battery.charge']) || null,
-      loadPct: parseFloat(vars['ups.load']) || null,
+      loadPct,
       runtimeMin: vars['battery.runtime'] ? Math.round(parseFloat(vars['battery.runtime']) / 60) : null,
       lineV: parseFloat(vars['input.voltage']) || null,
+      watts: watts != null ? Math.round(watts * 10) / 10 : null,
+      wattsSource,
     };
   };
 

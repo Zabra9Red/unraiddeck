@@ -17,6 +17,7 @@ import { statsHistory } from '../docker/stats-hub.js';
 import { serveIcon } from '../docker/icons.js';
 import { updateContainer, findDependents, checkAllUpdates, checkOneUpdate, allCachedResults } from '../docker/updates.js';
 import * as poller from '../unraid/poller.js';
+import { energyOverview, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
 
 export function buildRouter() {
   const r = Router();
@@ -284,6 +285,23 @@ export function buildRouter() {
 
   r.get('/unraid/parity/history', async (_req, res, next) => {
     try { res.json(await poller.parityHistory()); } catch (e) { next(e); }
+  });
+
+  // ---- Energia UPS: consumi integrati + costo €/kWh ----
+  r.get('/unraid/energy', (req, res, next) => {
+    try {
+      const out = energyOverview(req.query.hours);
+      out.presets = getEnergyConfig().presets;
+      res.json(out);
+    } catch (e) { next(e); }
+  });
+
+  r.post('/unraid/energy/config', actionLimiter, (req, res, next) => {
+    try {
+      const cfg = setEnergyConfig(req.body || {});
+      audit(req.user.username, 'unraid.energy-config', `${cfg.pricePerKwh} €/kWh`, 'ok', req.ip);
+      res.json(cfg);
+    } catch (e) { next(e); }
   });
 
   r.get('/unraid/smart/:device', async (req, res, next) => {

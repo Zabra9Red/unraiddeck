@@ -6,6 +6,7 @@ import { config } from '../core/config.js';
 import * as gql from './graphql.js';
 import * as ssh from './ssh-fallback.js';
 import { upsStatus } from './ups.js';
+import { recordPowerSample } from './energy.js';
 import { notify, alarmActive, alarmClear, tempThreshold } from '../core/notify.js';
 import { log } from '../core/util.js';
 import WebSocket from 'ws';
@@ -336,6 +337,7 @@ function startPolling() {
   runSection('ups', async () => {
     const ups = await upsStatus();
     checkUpsAlarms(ups);
+    recordPowerSample(ups?.watts ?? null);
     return ups;
   }, 60000);
 }

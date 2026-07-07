@@ -23,6 +23,7 @@ UnraidDeck combines full Docker container management and Unraid system monitorin
 - Unraid **7.x**: `unraid-api` GraphQL with a **capability map built via introspection** → each section degrades independently if the schema doesn't expose it.
 - Unraid **6.12**: SSH fallback parsing `/var/local/emhttp/*.ini`.
 - Array and parity (start/stop/pause/resume/cancel + history from `/boot/config/parity-checks.log`), disks with **temperature and spin state from passive sources** (never periodic smartctl: spun-down disks are not woken up; full SMART only on demand with `-n standby`), ZFS/BTRFS pools, shares, VMs, **UPS** (apcupsd NIS or NUT over plain TCP, no mounts), host reboot/shutdown.
+- **Power consumption from the UPS**: absorbed power (measured via `ups.realpower` or estimated from nominal power × load), integrated into kWh for today/7d/30d/year with an hourly chart, and **cost in €** using your electricity price per kWh (indicative presets for major Italian providers — Enel, Eni Plenitude, Edison, A2A, Iren, Sorgenia, Octopus — or a manual value).
 
 **Security**
 - First-run setup wizard (bcrypt cost 12), opaque sessions in SQLite (real revocation, "log out everywhere"), **optional TOTP** with recovery codes, full audit log (exec sessions included), rate limiting, strict CSP, Origin verification on mutating REST routes and WebSocket handshake, secrets **encrypted at rest** (AES-256-GCM).

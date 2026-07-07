@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.5.0] — 2026-07-07
+
+### Aggiunto
+- **Consumo elettrico dall'UPS**: la potenza assorbita (NUT `ups.realpower` misurata, oppure stimata da potenza nominale × carico — apcupsd `NOMPOWER×LOADPCT`, NUT `realpower.nominal`/`power.nominal`×PF 0,8) viene campionata a ogni poll e integrata in bucket orari SQLite (`ups_energy`, retention 2 anni, gap >5 min scartati). Nella card UPS: potenza attuale, kWh oggi/ieri/7g/30g/anno, grafico della potenza media oraria (24h) e **costo in €** con prezzo €/kWh configurabile — preset indicativi dei principali fornitori italiani (Enel, Eni Plenitude, Edison, A2A, Iren, Sorgenia, Octopus, ARERA tutela) o valore manuale della bolletta. API: `GET /api/unraid/energy`, `POST /api/unraid/energy/config`.
+
 ## [1.4.2] — 2026-07-07
 
 ### Corretto
