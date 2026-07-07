@@ -104,11 +104,10 @@ const STATIC_TYPES = {
   ArrayDisk: Object.fromEntries(['id', 'idx', 'name', 'device', 'size', 'status', 'type', 'temp', 'rotational', 'numErrors', 'numReads', 'numWrites', 'fsSize', 'fsFree', 'fsUsed', 'fsType', 'exportable', 'color', 'transport'].map(f => [f, 'String'])),
   Disk: { id: 'String', device: 'String', name: 'String', vendor: 'String', size: 'String', temperature: 'Int', smartStatus: 'String', serialNum: 'String', interfaceType: 'String', rotational: 'Boolean', type: 'String' },
   Share: { name: 'String', free: 'String', used: 'String', size: 'String', comment: 'String', cache: 'Boolean', include: 'String', exclude: 'String' },
-  Info: { os: 'InfoOs', cpu: 'InfoCpu', memory: 'InfoMemory', versions: 'Versions' },
+  Info: { os: 'InfoOs', cpu: 'InfoCpu', memory: 'InfoMemory', versions: 'InfoVersions' },
   InfoOs: { platform: 'String', distro: 'String', release: 'String', uptime: 'String', hostname: 'String' },
   InfoCpu: { manufacturer: 'String', brand: 'String', cores: 'Int', threads: 'Int' },
-  InfoMemory: { total: 'String', free: 'String', used: 'String', available: 'String', active: 'String' },
-  Versions: { unraid: 'String', kernel: 'String', docker: 'String' },
+  InfoVersions: { unraid: 'String', kernel: 'String', docker: 'String' },
   Vms: { domain: 'VmDomain', domains: 'VmDomain' },
   VmDomain: { uuid: 'String', name: 'String', state: 'String' },
   ArrayMutations: { setState: 'UnraidArray' },
@@ -143,8 +142,23 @@ function loadStaticSchema() {
 function pruneRejectedFields(message) {
   let pruned = false;
   for (const m of String(message).matchAll(/Cannot query field "([^"]+)" on type "([^"]+)"/g)) {
-    const t = schemaTypes?.get(m[2]);
-    if (t && m[1] in t.fields) { delete t.fields[m[1]]; pruned = true; }
+    const [, field, typeName] = m;
+    const t = schemaTypes?.get(typeName);
+    if (t && field in t.fields) { delete t.fields[field]; pruned = true; continue; }
+    // Il server può chiamare il tipo diversamente dallo schema statico
+    // (es. "InfoVersions" vs "Versions"): prova il match per somiglianza di
+    // nome, poi come ultima risorsa elimina il campo da qualunque tipo lo abbia.
+    let matched = false;
+    for (const [name, tt] of schemaTypes || []) {
+      if ((typeName.includes(name) || name.includes(typeName)) && field in tt.fields) {
+        delete tt.fields[field];
+        pruned = true; matched = true;
+      }
+    }
+    if (matched) continue;
+    for (const [, tt] of schemaTypes || []) {
+      if (field in tt.fields) { delete tt.fields[field]; pruned = true; }
+    }
   }
   return pruned;
 }

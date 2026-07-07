@@ -2,6 +2,12 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.6.1] — 2026-07-07
+
+### Corretto
+- **Schema statico: auto-riparazione anche con nomi tipo diversi** — il server può chiamare un tipo diversamente dallo schema statico (es. `InfoVersions`): ora il pruning dei campi rifiutati matcha per somiglianza di nome e, in ultima istanza, per solo nome campo, quindi la sezione si auto-ripara invece di restare in errore ("Sezione non disponibile: Cannot query field \"unraid\" on type \"InfoVersions\"").
+- **Diagnostica UPS**: quando l'UPS non è rilevato la card mostra il motivo reale per protocollo (`apcupsd:3551 → timeout`, `NUT:3493 → ECONNREFUSED`, host mancante) e i passi per risolvere (servizio UPS su Unraid, `LISTEN 0.0.0.0` per NUT), invece del generico "UPS non rilevato".
+
 ## [1.6.0] — 2026-07-07
 
 ### Aggiunto

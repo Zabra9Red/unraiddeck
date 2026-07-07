@@ -81,10 +81,12 @@ function nutRequest(host, port = 3493, timeoutMs = 5000) {
   });
 }
 
-// Normalizza in un DTO comune.
+// Normalizza in un DTO comune. Se l'UPS non è raggiungibile ritorna
+// { detected: false, reason } così la UI può dire PERCHÉ (porta chiusa,
+// timeout, host mancante) invece di un generico "non rilevato".
 export async function upsStatus() {
   const host = config.unraidHost;
-  if (!host) return null;
+  if (!host) return { detected: false, reason: 'UNRAID_HOST non impostato' };
 
   const tryApc = async () => {
     const kv = await apcStatus(host);
@@ -136,13 +138,16 @@ export async function upsStatus() {
   };
 
   const order = detectedMode === 'nut' ? [tryNut, tryApc] : [tryApc, tryNut];
+  const errs = [];
   for (const fn of order) {
     try {
       const res = await fn();
       detectedMode = res.mode;
-      return res;
-    } catch { /* prova il prossimo */ }
+      return { detected: true, ...res };
+    } catch (e) {
+      errs.push(`${fn === tryApc ? 'apcupsd:3551' : 'NUT:3493'} → ${e.message}`);
+    }
   }
   detectedMode = 'none';
-  return null;
+  return { detected: false, reason: `${host}: ${errs.join(' · ')}` };
 }

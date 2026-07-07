@@ -98,7 +98,7 @@ function EnergyPanel({ ups }) {
         )}
       </div>
 
-      {ups && ups.watts == null ? (
+      {ups?.detected && ups.watts == null ? (
         <div className="text-xs text-overlay0">{t.energyNoPower}</div>
       ) : (
         <>
@@ -487,7 +487,7 @@ export function UnraidView() {
         {/* UPS + Power */}
         <Card title={t.ups}>
           <SectionError name="ups" />
-          {ups ? (
+          {ups?.detected ? (
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
                 <Badge color={ups.onBattery ? 'red' : 'green'}>{ups.onBattery ? t.upsOnBattery : (ups.status || t.upsOnline)}</Badge>
@@ -503,7 +503,17 @@ export function UnraidView() {
               <div className="flex justify-between text-xs"><span className="text-subtext0">{t.upsRuntime}</span><span>{ups.runtimeMin != null ? `${ups.runtimeMin} min` : '—'}</span></div>
             </div>
           ) : (
-            <div className="text-xs text-overlay0">UPS non rilevato (apcupsd NIS 3551 / NUT 3493)</div>
+            <div className="space-y-2">
+              <div className="text-xs text-overlay0">{t.upsNotDetected}</div>
+              {ups?.reason && (
+                <div className="text-[11px] text-peach bg-peach/10 border border-peach/30 rounded-lg px-2 py-1.5 font-mono break-words">
+                  {ups.reason}
+                </div>
+              )}
+              <ul className="text-[11px] text-subtext0 space-y-1 list-disc pl-4">
+                {t.upsHints.map((h, i) => <li key={i}>{h}</li>)}
+              </ul>
+            </div>
           )}
           <EnergyPanel ups={ups} />
           <div className="border-t border-surface0 mt-3 pt-3">

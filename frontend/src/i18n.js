@@ -176,6 +176,12 @@ export const t = {
   energyGranMonth: 'Mese',
   energyGranYear: 'Anno',
   energyPersistNote: 'Dati salvati su disco (/config): sopravvivono a riavvii di container e server.',
+  upsNotDetected: 'UPS non rilevato',
+  upsHints: [
+    'UPS collegato a Unraid (apcupsd): Impostazioni → UPS Settings → servizio avviato. Il demone ascolta sulla porta 3551.',
+    'Plugin NUT: in upsd.conf serve LISTEN 0.0.0.0 3493 (di default ascolta solo su 127.0.0.1).',
+    'UNRAID_HOST deve essere l\'IP del server a cui è collegato l\'UPS.',
+  ],
   power: 'Alimentazione host',
   powerReboot: 'Riavvia host',
   powerShutdown: 'Spegni host',
