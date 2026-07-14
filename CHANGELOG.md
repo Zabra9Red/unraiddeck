@@ -2,6 +2,14 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.13.0] — 2026-07-14
+
+### Aggiunto
+- **Editing Office completo (opzionale)** via OnlyOffice Document Server: con `ONLYOFFICE_URL` (+ `ONLYOFFICE_JWT_SECRET` se attivo) i docx/xlsx/pptx si aprono e **modificano** in un editor a schermo pieno dal file manager; il salvataggio riscrive il file sulla share via SFTP (token usa-e-getta per il DS, tutto in audit). Senza OnlyOffice resta l'estrazione testo.
+
+### Corretto
+- **PDF di nuovo visualizzabili** nell'anteprima: la CSP dell'app (`object-src 'none'`) veniva applicata anche alla risposta del download e Chrome rifiutava di renderizzare il PDF; ora i file scaricati non portano la CSP dell'app (sicuro: HTML/SVG/JS restano text/plain).
+
 ## [1.12.0] — 2026-07-14
 
 ### Aggiunto
