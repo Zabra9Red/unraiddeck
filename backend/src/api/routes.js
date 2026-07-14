@@ -314,6 +314,12 @@ export function buildRouter() {
       await files.streamDownload(p, res, req.query.dl === '1');
     } catch (e) { next(e); }
   });
+  r.get('/unraid/files/peek', async (req, res, next) => {
+    try { res.json(await files.peek(files.safePath(req.query.path))); } catch (e) { next(e); }
+  });
+  r.get('/unraid/files/extract', async (req, res, next) => {
+    try { res.json(await files.extractText(files.safePath(req.query.path))); } catch (e) { next(e); }
+  });
   r.put('/unraid/files/upload', actionLimiter, async (req, res, next) => {
     try {
       const p = files.safePath(req.query.path);

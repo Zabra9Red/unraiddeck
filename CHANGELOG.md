@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.12.0] — 2026-07-14
+
+### Aggiunto
+- **Editor di testo in-app** nel file manager: tutti i file di testo e codice (txt, conf, log, cpp, py, json, …) si modificano e salvano direttamente dal browser (fino a 2 MB).
+- **File senza estensione** (o con estensione ignota): il contenuto viene analizzato — se è testo si apre nell'editor, se è binario resta il download più il pulsante "Apri come testo (grezzo)".
+- **Documenti Office**: docx/odt/rtf mostrano il testo estratto (lettore ZIP+XML interno, nessuna dipendenza); i .doc legacy usano l'estrazione stile `strings` (approssimativa, segnalata).
+
 ## [1.11.0] — 2026-07-14
 
 ### Aggiunto

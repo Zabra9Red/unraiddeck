@@ -8,42 +8,110 @@ import { Modal } from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { t, fmtBytes, fmtTs } from '../i18n.js';
 
+const TEXT_EXT = ['txt', 'md', 'log', 'conf', 'cfg', 'ini', 'yml', 'yaml', 'sh', 'py', 'js', 'ts', 'jsx', 'tsx',
+  'css', 'html', 'htm', 'xml', 'svg', 'csv', 'json', 'c', 'cpp', 'cc', 'h', 'hpp', 'java', 'go', 'rs', 'php',
+  'rb', 'pl', 'lua', 'sql', 'toml', 'env', 'bat', 'ps1', 'vue', 'properties', 'nfo', 'srt', 'sub', 'm3u', 'm3u8', 'cue'];
 const kindFor = (name) => {
+  if (!name.includes('.')) return 'unknown'; // senza estensione: detection dal contenuto
   const ext = name.split('.').pop().toLowerCase();
   if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'avif'].includes(ext)) return 'image';
   if (['mp4', 'webm', 'mkv', 'mov'].includes(ext)) return 'video';
   if (['mp3', 'flac', 'wav', 'm4a', 'ogg', 'opus'].includes(ext)) return 'audio';
   if (ext === 'pdf') return 'pdf';
-  if (['txt', 'md', 'log', 'conf', 'cfg', 'ini', 'yml', 'yaml', 'sh', 'py', 'js', 'ts', 'css', 'html', 'htm', 'xml', 'svg', 'csv', 'json'].includes(ext)) return 'text';
-  return 'other';
+  if (['doc', 'docx', 'odt', 'rtf'].includes(ext)) return 'document';
+  if (TEXT_EXT.includes(ext)) return 'text';
+  return 'unknown'; // estensione ignota: prova comunque la detection
 };
 const dlUrl = (p, dl = false) => `/api/unraid/files/download?path=${encodeURIComponent(p)}${dl ? '&dl=1' : ''}`;
-const ICON = { dir: '📁', link: '🔗', image: '🖼️', video: '🎬', audio: '🎵', pdf: '📕', text: '📄', other: '📦' };
+const ICON = { dir: '📁', link: '🔗', image: '🖼️', video: '🎬', audio: '🎵', pdf: '📕', text: '📄', document: '📝', unknown: '📦' };
+
+const EDIT_MAX = 2 * 1024 * 1024;
 
 function Preview({ item, onClose }) {
-  const kind = kindFor(item.name);
+  const toast = useToast();
+  const initialKind = kindFor(item.name);
+  // 'unknown' viene risolto in 'text' o 'binary' dopo la peek sul contenuto
+  const [kind, setKind] = useState(initialKind);
   const [text, setText] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState(null);
+
+  const loadText = () => fetch(dlUrl(item.path), { credentials: 'same-origin' })
+    .then((r) => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
+    .then((s) => { setText(s); setDirty(false); })
+    .catch((e) => setText(`Errore: ${e.message}`));
+
+  const loadExtract = () => {
+    setKind('extract');
+    setText(null);
+    fetch(`/api/unraid/files/extract?path=${encodeURIComponent(item.path)}`, { credentials: 'same-origin' })
+      .then((r) => r.json().then((j) => r.ok ? j : Promise.reject(new Error(j?.error || `HTTP ${r.status}`))))
+      .then((j) => { setText(j.text || '(vuoto)'); if (j.lossy) setNote(t.filesLossyNote); })
+      .catch((e) => setText(`Errore: ${e.message}`));
+  };
 
   useEffect(() => {
-    if (kind !== 'text') return;
-    if (item.size > 2 * 1024 * 1024) { setText(t.filesTooBig); return; }
-    fetch(dlUrl(item.path), { credentials: 'same-origin' })
-      .then((r) => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(setText)
-      .catch((e) => setText(`Errore: ${e.message}`));
+    if (initialKind === 'text') {
+      if (item.size > EDIT_MAX) { setKind('binary'); setNote(t.filesTooBig); return; }
+      loadText();
+    } else if (initialKind === 'document') {
+      loadExtract();
+    } else if (initialKind === 'unknown') {
+      // File senza estensione (o ignota): guarda dentro
+      fetch(`/api/unraid/files/peek?path=${encodeURIComponent(item.path)}`, { credentials: 'same-origin' })
+        .then((r) => r.json())
+        .then((j) => {
+          if (j.isText && j.size <= EDIT_MAX) { setKind('text'); loadText(); }
+          else { setKind('binary'); if (j.isText) setNote(t.filesTooBig); }
+        })
+        .catch(() => setKind('binary'));
+    }
   }, [item.path]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/unraid/files/upload?path=${encodeURIComponent(item.path)}`, {
+        method: 'PUT', body: text, credentials: 'same-origin',
+        headers: { 'content-type': 'application/octet-stream' },
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || `HTTP ${res.status}`);
+      setDirty(false);
+      toast.ok(t.tabFiles, t.filesSaved(item.name));
+    } catch (e) { toast.error(t.tabFiles, e.message); }
+    setSaving(false);
+  };
+
   return (
-    <Modal title={item.name} onClose={onClose} wide>
+    <Modal title={item.name + (dirty ? ' •' : '')} onClose={onClose} wide>
       <div className="max-h-[70vh] overflow-auto flex justify-center">
         {kind === 'image' && <img src={dlUrl(item.path)} alt={item.name} className="max-w-full h-auto rounded-lg" />}
         {kind === 'video' && <video controls autoPlay className="max-w-full max-h-[65vh] rounded-lg" src={dlUrl(item.path)} />}
         {kind === 'audio' && <audio controls autoPlay className="w-full" src={dlUrl(item.path)} />}
         {kind === 'pdf' && <iframe title={item.name} src={dlUrl(item.path)} className="w-full h-[65vh] rounded-lg border border-surface0" />}
-        {kind === 'text' && (text === null ? <Spinner /> : <pre className="w-full text-xs whitespace-pre-wrap break-words font-mono bg-crust rounded-lg p-3">{text}</pre>)}
-        {kind === 'other' && <div className="text-sm text-subtext0 py-6">{t.filesNoPreview}</div>}
+        {kind === 'unknown' && <Spinner />}
+        {kind === 'text' && (text === null ? <Spinner /> : (
+          <textarea
+            value={text}
+            onChange={(e) => { setText(e.target.value); setDirty(true); }}
+            spellCheck={false}
+            className="w-full h-[60vh] text-xs font-mono bg-crust text-text rounded-lg p-3 border border-surface0 outline-none focus:border-blue resize-none"
+          />
+        ))}
+        {kind === 'extract' && (text === null ? <Spinner /> : (
+          <pre className="w-full text-xs whitespace-pre-wrap break-words font-mono bg-crust rounded-lg p-3">{text}</pre>
+        ))}
+        {kind === 'binary' && <div className="text-sm text-subtext0 py-6">{t.filesNoPreview}</div>}
       </div>
-      <div className="flex justify-end gap-2 mt-3">
+      {note && <div className="text-[11px] text-peach mt-2">{note}</div>}
+      <div className="flex justify-end items-center gap-2 mt-3">
+        {kind === 'binary' && <Btn size="sm" variant="ghost" onClick={loadExtract}>{t.filesForceText}</Btn>}
+        {kind === 'text' && (
+          <Btn size="sm" variant="primary" onClick={save} disabled={!dirty || saving}>
+            {saving ? <Spinner /> : t.filesSave}
+          </Btn>
+        )}
         <a href={dlUrl(item.path, true)} download>
           <Btn size="sm">{t.filesDownload}</Btn>
         </a>

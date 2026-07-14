@@ -3,6 +3,7 @@
 // I file si aprono nel browser con MIME corretto; HTML/SVG/JS serviti come
 // text/plain per non eseguire script sull'origin dell'app.
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { sshConfigured, sshSftp } from './ssh-fallback.js';
 
 const MIME = {
@@ -115,6 +116,139 @@ export async function rename(from, to) {
   requireSsh();
   const sftp = await sshSftp();
   await new Promise((resolve, reject) => sftp.rename(from, to, (e) => e ? reject(e) : resolve()));
+}
+
+// Legge i primi N byte (per la detection testo/binario dei file senza estensione).
+async function readHead(p, bytes = 4096) {
+  const sftp = await sshSftp();
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let got = 0;
+    const rs = sftp.createReadStream(p, { start: 0, end: bytes - 1 });
+    rs.on('data', (c) => { chunks.push(c); got += c.length; if (got >= bytes) rs.destroy(); });
+    rs.on('error', reject);
+    rs.on('close', () => resolve(Buffer.concat(chunks)));
+    rs.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+// Euristica testo/binario: nessun NUL e >90% di byte stampabili/whitespace.
+export function isProbablyText(buf) {
+  if (!buf.length) return true;
+  let printable = 0;
+  for (const b of buf) {
+    if (b === 0) return false;
+    if (b === 9 || b === 10 || b === 13 || (b >= 32 && b !== 127)) printable += 1;
+  }
+  return printable / buf.length > 0.9;
+}
+
+// { isText, size } per decidere lato client se aprire l'editor.
+export async function peek(p) {
+  requireSsh();
+  const st = await statPath(p);
+  if (st.isDirectory()) {
+    const err = new Error('È una directory');
+    err.status = 400;
+    throw err;
+  }
+  const head = await readHead(p);
+  return { isText: isProbablyText(head), size: st.size };
+}
+
+// Legge un file intero in memoria (cap dimensione, per l'estrazione documenti).
+async function readAll(p, maxBytes = 20 * 1024 * 1024) {
+  const st = await statPath(p);
+  if (st.size > maxBytes) {
+    const err = new Error(`File troppo grande (${Math.round(st.size / 1048576)} MB, max ${Math.round(maxBytes / 1048576)})`);
+    err.status = 400;
+    throw err;
+  }
+  const sftp = await sshSftp();
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const rs = sftp.createReadStream(p);
+    rs.on('data', (c) => chunks.push(c));
+    rs.on('error', reject);
+    rs.on('end', () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+// ---- Mini lettore ZIP (per docx/odt): central directory → entry → inflateRaw ----
+export function unzipEntry(buf, wantedName) {
+  // EOCD (0x06054b50) cercato dalla coda; poi central directory (0x02014b50)
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65558); i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('ZIP non valido');
+  const count = buf.readUInt16LE(eocd + 10);
+  let off = buf.readUInt32LE(eocd + 16);
+  for (let n = 0; n < count; n++) {
+    if (buf.readUInt32LE(off) !== 0x02014b50) break;
+    const method = buf.readUInt16LE(off + 10);
+    const compSize = buf.readUInt32LE(off + 20);
+    const nameLen = buf.readUInt16LE(off + 28);
+    const extraLen = buf.readUInt16LE(off + 30);
+    const commentLen = buf.readUInt16LE(off + 32);
+    const localOff = buf.readUInt32LE(off + 42);
+    const name = buf.toString('utf8', off + 46, off + 46 + nameLen);
+    if (name === wantedName) {
+      // Local header: name/extra possono differire dal central directory
+      const lNameLen = buf.readUInt16LE(localOff + 26);
+      const lExtraLen = buf.readUInt16LE(localOff + 28);
+      const start = localOff + 30 + lNameLen + lExtraLen;
+      const data = buf.subarray(start, start + compSize);
+      return method === 8 ? zlib.inflateRawSync(data) : Buffer.from(data);
+    }
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  throw new Error(`Voce "${wantedName}" non trovata nel documento`);
+}
+
+function xmlToText(xml) {
+  return xml
+    .replace(/<\/w:p>|<\/text:p>/g, '\n')
+    .replace(/<w:tab\/>|<text:tab\/>/g, '\t')
+    .replace(/<w:br\/>|<text:line-break\/>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Sequenze stampabili (stile `strings`) per i .doc binari legacy.
+function extractStrings(buf) {
+  const out = [];
+  let cur = [];
+  for (const b of buf) {
+    if (b === 9 || b === 10 || b === 13 || (b >= 32 && b < 127) || b >= 0xC0) cur.push(b);
+    else { if (cur.length >= 6) out.push(Buffer.from(cur).toString('utf8')); cur = []; }
+  }
+  if (cur.length >= 6) out.push(Buffer.from(cur).toString('utf8'));
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+// Estrae il testo leggibile da docx/odt/rtf/doc → { text, lossy }.
+export async function extractText(p) {
+  requireSsh();
+  const ext = String(p).split('.').pop().toLowerCase();
+  const buf = await readAll(p);
+  if (ext === 'docx') return { text: xmlToText(unzipEntry(buf, 'word/document.xml').toString('utf8')), lossy: false };
+  if (ext === 'odt') return { text: xmlToText(unzipEntry(buf, 'content.xml').toString('utf8')), lossy: false };
+  if (ext === 'rtf') {
+    const text = buf.toString('utf8')
+      .replace(/\\par[d]?/g, '\n')
+      .replace(/\\'([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/\\[a-z]+-?\d*\s?/gi, '')
+      .replace(/[{}]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return { text, lossy: false };
+  }
+  // .doc legacy e qualunque altro binario: estrazione "strings" (con perdita)
+  return { text: extractStrings(buf), lossy: true };
 }
 
 // Elimina file o directory VUOTA (niente ricorsione: troppo pericoloso via UI).
