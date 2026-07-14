@@ -1,12 +1,16 @@
 // File manager delle share (SFTP lato backend): navigazione sotto /mnt,
 // anteprima in-app per immagini/video/audio/pdf/testo, download, upload,
 // nuova cartella, rinomina, elimina (dir solo se vuote).
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { api } from '../api.js';
 import { Btn, Card, Spinner, EmptyState, Badge } from '../components/ui.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { t, fmtBytes, fmtTs } from '../i18n.js';
+
+// Editor integrati (SheetJS/docx-preview, bundlati): lazy per non pesare sul bundle base
+const SpreadsheetEditor = lazy(() => import('../components/OfficeLocal.jsx').then((m) => ({ default: m.SpreadsheetEditor })));
+const DocxPanel = lazy(() => import('../components/OfficeLocal.jsx').then((m) => ({ default: m.DocxPanel })));
 
 const TEXT_EXT = ['txt', 'md', 'log', 'conf', 'cfg', 'ini', 'yml', 'yaml', 'sh', 'py', 'js', 'ts', 'jsx', 'tsx',
   'css', 'html', 'htm', 'xml', 'svg', 'csv', 'json', 'c', 'cpp', 'cc', 'h', 'hpp', 'java', 'go', 'rs', 'php',
@@ -173,7 +177,9 @@ export function FilesView() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [officeDoc, setOfficeDoc] = useState(null);
+  const [officeDoc, setOfficeDoc] = useState(null);   // editor OnlyOffice (se configurato)
+  const [sheetDoc, setSheetDoc] = useState(null);     // editor fogli integrato
+  const [docxDoc, setDocxDoc] = useState(null);       // viewer/editor docx integrato
   const [busy, setBusy] = useState(false);
   const uploadRef = useRef(null);
 
@@ -274,8 +280,11 @@ export function FilesView() {
                       className="py-1.5 cursor-pointer truncate max-w-0 w-full"
                       onClick={() => {
                         const full = { ...e, path: `${data.path}/${e.name}` };
+                        const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
                         if (e.type === 'dir') load(full.path);
                         else if (data.office && officeSupported(e.name)) setOfficeDoc(full);
+                        else if (['xlsx', 'xls', 'ods', 'xlsm'].includes(ext)) setSheetDoc(full);
+                        else if (ext === 'docx') setDocxDoc(full);
                         else setPreview(full);
                       }}
                       title={e.name}
@@ -303,6 +312,16 @@ export function FilesView() {
 
       {preview && <Preview item={preview} onClose={() => setPreview(null)} />}
       {officeDoc && <OfficeEditor item={officeDoc} onClose={() => { setOfficeDoc(null); load(data.path); }} />}
+      {sheetDoc && (
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-crust/95 flex items-center justify-center"><Spinner className="w-8 h-8" /></div>}>
+          <SpreadsheetEditor item={sheetDoc} onClose={() => { setSheetDoc(null); load(data.path); }} />
+        </Suspense>
+      )}
+      {docxDoc && (
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-crust/95 flex items-center justify-center"><Spinner className="w-8 h-8" /></div>}>
+          <DocxPanel item={docxDoc} onClose={() => { setDocxDoc(null); load(data.path); }} onSaved={() => load(data.path)} />
+        </Suspense>
+      )}
     </div>
   );
 }

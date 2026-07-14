@@ -239,13 +239,53 @@ function extractStrings(buf) {
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
-// Estrae il testo leggibile da docx/odt/rtf/doc → { text, lossy }.
+// Elenca i nomi delle voci dello ZIP che matchano una regex.
+export function unzipList(buf, rx) {
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65558); i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('ZIP non valido');
+  const count = buf.readUInt16LE(eocd + 10);
+  let off = buf.readUInt32LE(eocd + 16);
+  const names = [];
+  for (let n = 0; n < count; n++) {
+    if (buf.readUInt32LE(off) !== 0x02014b50) break;
+    const nameLen = buf.readUInt16LE(off + 28);
+    const extraLen = buf.readUInt16LE(off + 30);
+    const commentLen = buf.readUInt16LE(off + 32);
+    const name = buf.toString('utf8', off + 46, off + 46 + nameLen);
+    if (rx.test(name)) names.push(name);
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return names;
+}
+
+// Estrae il testo leggibile da docx/odt/rtf/pptx/xlsx/ods/doc → { text, lossy }.
 export async function extractText(p) {
   requireSsh();
   const ext = String(p).split('.').pop().toLowerCase();
   const buf = await readAll(p);
   if (ext === 'docx') return { text: xmlToText(unzipEntry(buf, 'word/document.xml').toString('utf8')), lossy: false };
-  if (ext === 'odt') return { text: xmlToText(unzipEntry(buf, 'content.xml').toString('utf8')), lossy: false };
+  if (ext === 'odt' || ext === 'ods' || ext === 'odp') return { text: xmlToText(unzipEntry(buf, 'content.xml').toString('utf8')), lossy: false };
+  if (ext === 'pptx') {
+    const slides = unzipList(buf, /^ppt\/slides\/slide\d+\.xml$/)
+      .sort((a, b) => parseInt(a.match(/\d+/)[0], 10) - parseInt(b.match(/\d+/)[0], 10));
+    const text = slides
+      .map((s, i) => `--- Slide ${i + 1} ---\n${xmlToText(unzipEntry(buf, s).toString('utf8').replace(/<\/a:p>/g, '\n'))}`)
+      .join('\n\n');
+    return { text, lossy: false };
+  }
+  if (ext === 'xlsx' || ext === 'xlsm') {
+    // Testo celle: sharedStrings (le stringhe di tutte le sheet)
+    try {
+      const xml = unzipEntry(buf, 'xl/sharedStrings.xml').toString('utf8');
+      const text = xmlToText(xml.replace(/<\/si>/g, '\n'));
+      return { text, lossy: true };
+    } catch {
+      return { text: '(nessuna stringa nel foglio)', lossy: true };
+    }
+  }
   if (ext === 'rtf') {
     const text = buf.toString('utf8')
       .replace(/\\par[d]?/g, '\n')

@@ -2,6 +2,15 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.14.0] — 2026-07-14
+
+### Aggiunto
+- **Editor Office integrati, tutto dentro UnraidDeck** (nessun container esterno, librerie bundlate):
+  - **Fogli di calcolo** (xlsx/xls/ods/xlsm): griglia editabile multi-sheet in-app via SheetJS — modifichi le celle e salvi nel formato originale (stili/formattazione possono semplificarsi).
+  - **docx**: anteprima fedele (docx-preview) + modalità "Modifica testo" che salva un docx rigenerato (di default come copia `-modificato.docx`, opzione sovrascrivi).
+  - **pptx**: testo estratto slide per slide; **ods/odp/xlsx**: estrazione testo migliorata.
+- L'integrazione OnlyOffice resta disponibile come opzione (se `ONLYOFFICE_URL` è impostata ha priorità), ma non è più necessaria.
+
 ## [1.13.0] — 2026-07-14
 
 ### Aggiunto

@@ -1,6 +1,6 @@
 {
   "name": "unraiddeck-frontend",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,10 +11,13 @@
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
+    "docx-preview": "^0.4.0",
+    "fflate": "^0.8.3",
     "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.10",
