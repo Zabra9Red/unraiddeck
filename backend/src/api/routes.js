@@ -18,6 +18,7 @@ import { serveIcon } from '../docker/icons.js';
 import { updateContainer, findDependents, checkAllUpdates, checkOneUpdate, allCachedResults, autoUpdateConfig, setAutoUpdateConfig } from '../docker/updates.js';
 import * as poller from '../unraid/poller.js';
 import { energyOverview, energyBreakdown, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
+import * as files from '../unraid/files.js';
 
 export function buildRouter() {
   const r = Router();
@@ -300,6 +301,53 @@ export function buildRouter() {
     try { res.json(energyBreakdown(req.query.granularity || 'day', req.query.within || null)); } catch (e) { next(e); }
   });
 
+  // ---- File manager share (SFTP, percorsi confinati sotto /mnt) ----
+  r.get('/unraid/files', async (req, res, next) => {
+    try {
+      const p = files.safePath(req.query.path);
+      res.json({ path: p, entries: await files.listDir(p) });
+    } catch (e) { next(e); }
+  });
+  r.get('/unraid/files/download', async (req, res, next) => {
+    try {
+      const p = files.safePath(req.query.path);
+      await files.streamDownload(p, res, req.query.dl === '1');
+    } catch (e) { next(e); }
+  });
+  r.put('/unraid/files/upload', actionLimiter, async (req, res, next) => {
+    try {
+      const p = files.safePath(req.query.path);
+      await files.streamUpload(p, req);
+      audit(req.user.username, 'files.upload', p, 'ok', req.ip);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+  r.post('/unraid/files/mkdir', actionLimiter, async (req, res, next) => {
+    try {
+      const p = files.safePath(req.body?.path);
+      await files.mkdir(p);
+      audit(req.user.username, 'files.mkdir', p, 'ok', req.ip);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+  r.post('/unraid/files/rename', actionLimiter, async (req, res, next) => {
+    try {
+      const from = files.safePath(req.body?.from);
+      const to = files.safePath(req.body?.to);
+      await files.rename(from, to);
+      audit(req.user.username, 'files.rename', `${from} → ${to}`, 'ok', req.ip);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+  r.post('/unraid/files/delete', actionLimiter, async (req, res, next) => {
+    try {
+      const p = files.safePath(req.body?.path);
+      await files.remove(p);
+      audit(req.user.username, 'files.delete', p, 'ok', req.ip);
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
   // ---- Auto-update: config on/off + intervallo ore ----
   r.get('/settings/auto-update', (_req, res) => res.json(autoUpdateConfig()));
   r.post('/settings/auto-update', actionLimiter, (req, res, next) => {
@@ -383,16 +431,26 @@ export function buildRouter() {
     const creds = db.prepare('SELECT registry, username FROM registry_creds').all();
     res.json({
       tempThreshold: getSetting('tempThreshold', 45),
+      tempMin: getSetting('tempMin', null),
       registryCreds: creds, // password mai esposte
       webhookConfigured: Boolean(config.notifyWebhookUrl),
     });
   });
   r.put('/settings', actionLimiter, (req, res) => {
-    const { tempThreshold: th } = req.body || {};
+    const { tempThreshold: th, tempMin } = req.body || {};
     if (th !== undefined) {
       const n = parseInt(th, 10);
       if (!Number.isFinite(n) || n < 20 || n > 80) return res.status(400).json({ error: 'Soglia temperatura 20-80 °C' });
       setSetting('tempThreshold', n);
+    }
+    if (tempMin !== undefined) {
+      if (tempMin === null || tempMin === '') {
+        setSetting('tempMin', null);
+      } else {
+        const n = parseInt(tempMin, 10);
+        if (!Number.isFinite(n) || n < 0 || n > 50) return res.status(400).json({ error: 'Soglia minima 0-50 °C (vuota = disattivata)' });
+        setSetting('tempMin', n);
+      }
     }
     audit(req.user.username, 'settings.update', null, 'ok', req.ip);
     res.json({ ok: true });

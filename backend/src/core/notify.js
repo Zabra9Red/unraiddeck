@@ -10,11 +10,12 @@ export function bindNotifyIo(io) { ioRef = io; }
 
 const COOLDOWN_MS = 3600000; // max 1/h per chiave
 
-// Emette una notifica (rispettando il cooldown per chiave). Ritorna true se emessa.
-export function notify(key, severity, title, body = '') {
+// Emette una notifica (rispettando il cooldown per chiave; opts.force lo salta
+// per eventi puntuali come inizio/fine update). Ritorna true se emessa.
+export function notify(key, severity, title, body = '', opts = {}) {
   const now = Date.now();
   const st = db.prepare('SELECT * FROM notif_state WHERE key = ?').get(key);
-  if (st && now - st.last_sent < COOLDOWN_MS) return false;
+  if (!opts.force && st && now - st.last_sent < COOLDOWN_MS) return false;
   db.prepare('INSERT INTO notif_state (key, active, last_sent) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET last_sent = ?, active = 1')
     .run(key, now, now);
   const info = db.prepare('INSERT INTO notifications (ts, key, severity, title, body) VALUES (?, ?, ?, ?, ?)')
@@ -90,7 +91,10 @@ export function pruneNotifications() {
   db.prepare('DELETE FROM notifications WHERE ts < ?').run(Date.now() - 90 * 86400000);
 }
 
-// Soglia temperatura dischi (default 45 °C), configurabile da UI.
+// Soglie temperatura dischi: max (default 45 °C) e min opzionale (null = off).
 export function tempThreshold() {
   return getSetting('tempThreshold', 45);
+}
+export function tempMinThreshold() {
+  return getSetting('tempMin', null);
 }

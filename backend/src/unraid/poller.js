@@ -7,7 +7,7 @@ import * as gql from './graphql.js';
 import * as ssh from './ssh-fallback.js';
 import { upsStatus } from './ups.js';
 import { recordPowerSample } from './energy.js';
-import { notify, alarmActive, alarmClear, tempThreshold } from '../core/notify.js';
+import { notify, alarmActive, alarmClear, tempThreshold, tempMinThreshold } from '../core/notify.js';
 import { log } from '../core/util.js';
 import WebSocket from 'ws';
 
@@ -152,14 +152,23 @@ function normVm(v) {
 
 // ---- Allarmi ----
 function checkDiskAlarms(disks) {
-  const th = tempThreshold();
+  const th = tempThreshold();        // massima
+  const thMin = tempMinThreshold();  // minima opzionale (null = disattiva)
   for (const d of disks || []) {
     if (d.temp == null) continue;
     const key = `disk-temp:${d.name}`;
     if (d.temp >= th) {
-      if (!alarmActive(key)) notify(key, 'warning', `Disco ${d.name} a ${d.temp}°C`, `Soglia ${th}°C superata (${d.device || ''})`);
+      if (!alarmActive(key)) notify(key, 'warning', `Disco ${d.name} a ${d.temp}°C`, `Soglia massima ${th}°C superata (${d.device || ''})`);
     } else if (d.temp <= th - 3 && alarmActive(key)) {
       alarmClear(key); // isteresi: rientro a soglia−3°C
+    }
+    if (thMin != null) {
+      const keyLow = `disk-temp-low:${d.name}`;
+      if (d.temp <= thMin) {
+        if (!alarmActive(keyLow)) notify(keyLow, 'warning', `Disco ${d.name} a ${d.temp}°C`, `Sotto la soglia minima di ${thMin}°C (${d.device || ''})`);
+      } else if (d.temp >= thMin + 3 && alarmActive(keyLow)) {
+        alarmClear(keyLow);
+      }
     }
   }
 }

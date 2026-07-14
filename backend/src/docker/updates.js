@@ -177,6 +177,7 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
     if (/^(sha256:)?[0-9a-f]{64}$/.test(ref)) {
       throw new Error('Container creato da id immagine (senza tag): update non applicabile');
     }
+    notify(`update-run:${name}`, 'info', `Update di ${name} avviato`, `Immagine ${ref}`, { force: true });
     const dependents = await findDependents(target.Id);
     const wasRunning = Boolean(target.State?.Running);
     const oldImageId = target.Image;
@@ -236,6 +237,7 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
         if (wasRunning) await docker.getContainer(target.Id).start().catch(() => {});
         journalClose(jid, 'rolledback');
         audit(user, 'container.update', name, 'errore', null, `rollback: ${err.message}`);
+        notify(`update-run:${name}`, 'error', `Update di ${name} fallito`, `Rollback eseguito: ${err.message}`, { force: true });
         throw new Error(`Update fallito, rollback eseguito: ${err.message}`);
       }
 
@@ -271,6 +273,9 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
       cacheUpdateResult(ref, { status: 'current', localDigest: (newImage.RepoDigests?.[0] || '').split('@')[1] });
       emitProgress(target.Id, { phase: 'done', status: 'Update completato', newId });
       audit(user, 'container.update', name, 'ok', null, `nuova immagine ${newImage.Id.slice(7, 19)}`);
+      const depFail = depResults.filter(d => !d.ok);
+      notify(`update-run:${name}`, depFail.length ? 'warning' : 'info', `Update di ${name} completato`,
+        depFail.length ? `Dipendenti falliti: ${depFail.map(d => d.name).join(', ')}` : `Nuova immagine ${newImage.Id.slice(7, 19)}`, { force: true });
       return { status: 'updated', newId, dependents: depResults };
     } catch (err) {
       // Errori in fase pull/clone (prima del rename): journal chiuso come fallito

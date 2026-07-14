@@ -75,6 +75,18 @@ export function sshClose() {
   connected = false;
 }
 
+// Canale SFTP condiviso (file manager). Invalidato alla chiusura.
+let sftpChan = null;
+export async function sshSftp() {
+  const c = await ensureConnected();
+  if (sftpChan) return sftpChan;
+  sftpChan = await new Promise((resolve, reject) => {
+    c.sftp((err, s) => err ? reject(err) : resolve(s));
+  });
+  sftpChan.on('close', () => { sftpChan = null; });
+  return sftpChan;
+}
+
 // Shell interattiva PTY per il terminale host (xterm lato client).
 export async function sshShell({ cols = 80, rows = 24 } = {}) {
   const c = await ensureConnected();

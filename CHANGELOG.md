@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.11.0] — 2026-07-14
+
+### Aggiunto
+- **File manager** (nuova tab "File"): naviga share e dischi sotto `/mnt` via SFTP (fallback SSH, nessun mount), con anteprima in-app di immagini, video, audio, PDF e testo; download, upload, nuova cartella, rinomina, elimina (in audit). HTML/SVG/JS serviti come testo per non eseguire script sull'origin dell'app.
+- **Notifiche inizio/fine update**: ogni update container notifica l'avvio, il completamento (o il fallimento con rollback) — in-app e webhook/ntfy.
+- **Range temperatura dischi**: oltre alla soglia massima ora c'è una soglia minima opzionale; allarme se un disco esce dal range (isteresi ±3 °C).
+
 ## [1.10.0] — 2026-07-14
 
 ### Aggiunto

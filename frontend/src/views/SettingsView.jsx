@@ -17,12 +17,14 @@ export function SettingsView({ me, onLogout }) {
   const [pw, setPw] = useState({ old: '', new1: '', new2: '' });
   const [reg, setReg] = useState({ registry: '', username: '', password: '' });
   const [threshold, setThreshold] = useState(45);
+  const [tempMin, setTempMin] = useState('');
   const [autoUpd, setAutoUpd] = useState({ enabled: false, intervalHours: 8 });
 
   const load = async () => {
     const [s, sess, au] = await Promise.all([api.get('/settings'), api.get('/sessions'), api.get('/settings/auto-update')]);
     setSettings(s);
     setThreshold(s.tempThreshold);
+    setTempMin(s.tempMin != null ? String(s.tempMin) : '');
     setSessions(sess);
     setAutoUpd(au);
   };
@@ -63,8 +65,8 @@ export function SettingsView({ me, onLogout }) {
 
   const saveThreshold = async () => {
     try {
-      await api.put('/settings', { tempThreshold: threshold });
-      toast.ok(t.thresholds, `Soglia ${threshold}°C salvata`);
+      await api.put('/settings', { tempThreshold: threshold, tempMin: tempMin === '' ? null : parseInt(tempMin, 10) });
+      toast.ok(t.thresholds, `Soglie salvate (max ${threshold}°C${tempMin !== '' ? `, min ${tempMin}°C` : ''})`);
     } catch (e) { toast.error(t.thresholds, e.message); }
   };
 
@@ -166,12 +168,19 @@ export function SettingsView({ me, onLogout }) {
       </Card>
 
       <Card title={t.thresholds}>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <Input
             label={t.tempThresholdLabel}
             type="number" min="20" max="80"
             value={threshold}
             onChange={(e) => setThreshold(parseInt(e.target.value || '45', 10))}
+            className="max-w-28"
+          />
+          <Input
+            label={t.tempMinLabel}
+            type="number" min="0" max="50" placeholder="off"
+            value={tempMin}
+            onChange={(e) => setTempMin(e.target.value)}
             className="max-w-28"
           />
           <Btn variant="primary" onClick={saveThreshold}>{t.save}</Btn>
