@@ -94,7 +94,21 @@ Mount opzionale della **directory** `/var/run/libvirt` (già predisposto nel tem
 | `NOTIFY_WEBHOOK_URL` | — | webhook notifiche (ntfy nativo auto-rilevato; JSON per Gotify/Discord) |
 | `NOTIFY_WEBHOOK_TYPE` | auto | forza `ntfy` (self-hosted su dominio custom) o `json` |
 | `POLL_UPS` | `10s` | frequenza poll UPS/potenza |
+| `ONLYOFFICE_URL` | — | URL del Document Server OnlyOffice per aprire/modificare i documenti Office (opzionale) |
+| `ONLYOFFICE_JWT_SECRET` | — | JWT secret del Document Server (se abilitato) |
 | `TZ` | `Europe/Rome` | |
+
+---
+
+## Documenti Office (opzionale, via OnlyOffice)
+
+Il file manager apre e **modifica** docx/xlsx/pptx (e visualizza doc/odt/rtf/xls/ppt…) come una vera suite Office integrando **OnlyOffice Document Server**:
+
+1. Installa **OnlyOffice Document Server** da Community Applications (container separato).
+2. Su UnraidDeck imposta `ONLYOFFICE_URL=http://IP:PORTA` e, se il DS ha il JWT attivo (default nelle versioni recenti), `ONLYOFFICE_JWT_SECRET` con lo stesso secret del DS.
+3. Nella tab File i documenti Office si aprono nell'editor a schermo pieno; il salvataggio riscrive il file sulla share.
+
+Senza OnlyOffice i documenti mostrano comunque il testo estratto (sola lettura).
 
 ---
 

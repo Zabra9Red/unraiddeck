@@ -19,6 +19,7 @@ import { updateContainer, findDependents, checkAllUpdates, checkOneUpdate, allCa
 import * as poller from '../unraid/poller.js';
 import { energyOverview, energyBreakdown, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
 import * as files from '../unraid/files.js';
+import * as office from '../unraid/office.js';
 
 export function buildRouter() {
   const r = Router();
@@ -132,8 +133,38 @@ export function buildRouter() {
     res.json(out);
   });
 
+  // ---- OnlyOffice: accesso documento + callback dal Document Server ----
+  // ESENTI da auth di sessione: il token random (24 byte) È l'autenticazione,
+  // il DS è un server esterno senza cookie. Sessioni con scadenza.
+  r.get('/unraid/office/doc/:token', async (req, res, next) => {
+    try {
+      const sess = office.sessionFor(req.params.token);
+      if (!sess) return res.status(404).json({ error: 'Sessione documento scaduta' });
+      await files.streamDownload(sess.path, res, true);
+    } catch (e) { next(e); }
+  });
+  r.post('/unraid/office/callback/:token', async (req, res) => {
+    try {
+      res.json(await office.handleCallback(req.params.token, req.body));
+    } catch (e) {
+      // Il DS ritenta sui non-zero: logga ma non fallire in loop
+      res.json({ error: 1, message: e.message });
+    }
+  });
+
   // Da qui in giù: tutto autenticato
   r.use(auth.requireAuth);
+
+  // Crea la sessione editor OnlyOffice (autenticata)
+  r.post('/unraid/office/session', actionLimiter, async (req, res, next) => {
+    try {
+      const p = files.safePath(req.body?.path);
+      const base = `${req.protocol}://${req.get('host')}`;
+      const out = await office.createSession(p, base, req.user.username);
+      audit(req.user.username, 'files.office-open', p, 'ok', req.ip);
+      res.json(out);
+    } catch (e) { next(e); }
+  });
 
   // ---- Icone (proxy cacheato) ----
   r.get('/icons', serveIcon);
@@ -305,7 +336,7 @@ export function buildRouter() {
   r.get('/unraid/files', async (req, res, next) => {
     try {
       const p = files.safePath(req.query.path);
-      res.json({ path: p, entries: await files.listDir(p) });
+      res.json({ path: p, entries: await files.listDir(p), office: office.officeConfigured() });
     } catch (e) { next(e); }
   });
   r.get('/unraid/files/download', async (req, res, next) => {

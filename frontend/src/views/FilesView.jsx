@@ -25,6 +25,54 @@ const kindFor = (name) => {
 const dlUrl = (p, dl = false) => `/api/unraid/files/download?path=${encodeURIComponent(p)}${dl ? '&dl=1' : ''}`;
 const ICON = { dir: '📁', link: '🔗', image: '🖼️', video: '🎬', audio: '🎵', pdf: '📕', text: '📄', document: '📝', unknown: '📦' };
 
+const OFFICE_EXT = ['doc', 'docx', 'odt', 'rtf', 'docm', 'xls', 'xlsx', 'ods', 'xlsm', 'ppt', 'pptx', 'odp', 'ppsx', 'epub', 'fb2'];
+const officeSupported = (name) => name.includes('.') && OFFICE_EXT.includes(name.split('.').pop().toLowerCase());
+
+// Editor OnlyOffice a schermo pieno: carica api.js dal Document Server e monta
+// DocsAPI.DocEditor; il salvataggio torna a UnraidDeck via callback → SFTP.
+function OfficeEditor({ item, onClose }) {
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let editor = null;
+    let cancelled = false;
+    api.post('/unraid/office/session', { path: item.path })
+      .then(({ config: cfg, apiJs }) => new Promise((resolve, reject) => {
+        if (window.DocsAPI) return resolve(cfg);
+        const s = document.createElement('script');
+        s.src = apiJs;
+        s.onload = () => resolve(cfg);
+        s.onerror = () => reject(new Error(t.officeApiFail));
+        document.head.appendChild(s);
+      }))
+      .then((cfg) => {
+        if (cancelled) return;
+        editor = new window.DocsAPI.DocEditor('unraiddeck-office-holder', {
+          ...cfg,
+          width: '100%',
+          height: '100%',
+          events: { onError: (e) => setError(e?.data?.errorDescription || 'Errore editor') },
+        });
+      })
+      .catch((e) => setError(e.message));
+    return () => { cancelled = true; try { editor?.destroyEditor(); } catch { /* già chiuso */ } };
+  }, [item.path]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="fixed inset-0 z-50 bg-crust/95 flex flex-col">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-surface0 bg-mantle">
+        <span className="text-sm font-medium truncate">{item.name}</span>
+        <Btn size="sm" onClick={onClose}>{t.officeClose}</Btn>
+      </div>
+      {error ? (
+        <div className="m-4 text-sm text-red bg-red/10 border border-red/30 rounded-lg px-3 py-2">{error}</div>
+      ) : (
+        <div className="flex-1 min-h-0"><div id="unraiddeck-office-holder" className="w-full h-full" /></div>
+      )}
+    </div>
+  );
+}
+
 const EDIT_MAX = 2 * 1024 * 1024;
 
 function Preview({ item, onClose }) {
@@ -125,6 +173,7 @@ export function FilesView() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [officeDoc, setOfficeDoc] = useState(null);
   const [busy, setBusy] = useState(false);
   const uploadRef = useRef(null);
 
@@ -223,7 +272,12 @@ export function FilesView() {
                   <tr key={e.name} className="border-t border-surface0 hover:bg-surface0/40">
                     <td
                       className="py-1.5 cursor-pointer truncate max-w-0 w-full"
-                      onClick={() => e.type === 'dir' ? load(`${data.path}/${e.name}`) : setPreview({ ...e, path: `${data.path}/${e.name}` })}
+                      onClick={() => {
+                        const full = { ...e, path: `${data.path}/${e.name}` };
+                        if (e.type === 'dir') load(full.path);
+                        else if (data.office && officeSupported(e.name)) setOfficeDoc(full);
+                        else setPreview(full);
+                      }}
                       title={e.name}
                     >
                       <span className="mr-1.5">{ICON[e.type === 'file' ? kindFor(e.name) : e.type]}</span>
@@ -248,6 +302,7 @@ export function FilesView() {
       </Card>
 
       {preview && <Preview item={preview} onClose={() => setPreview(null)} />}
+      {officeDoc && <OfficeEditor item={officeDoc} onClose={() => { setOfficeDoc(null); load(data.path); }} />}
     </div>
   );
 }

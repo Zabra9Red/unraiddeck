@@ -46,17 +46,21 @@ async function main() {
     app.set('trust proxy', ['true', '1'].includes(config.trustProxy.toLowerCase()) ? 1 : config.trustProxy);
   }
 
-  // CSP restrittiva self-only, compatibile con la build Vite
+  // CSP restrittiva self-only, compatibile con la build Vite.
+  // Con OnlyOffice configurato, l'origin del Document Server è ammesso per
+  // script (api.js) e iframe (l'editor vive in un frame del DS).
+  const dsOrigin = config.onlyofficeUrl ? new URL(config.onlyofficeUrl).origin : null;
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: dsOrigin ? ["'self'", dsOrigin] : ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"], // xterm/tailwind inline styles
         imgSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: ["'self'"],
+        connectSrc: dsOrigin ? ["'self'", dsOrigin] : ["'self'"],
         fontSrc: ["'self'"],
         objectSrc: ["'none'"],
+        frameSrc: dsOrigin ? ["'self'", dsOrigin] : ["'self'"],
         frameAncestors: ["'self'"],
         upgradeInsecureRequests: null,
       },

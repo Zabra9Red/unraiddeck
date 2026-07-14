@@ -81,6 +81,10 @@ export async function streamDownload(p, res, asAttachment = false) {
     throw err;
   }
   const name = path.posix.basename(p);
+  // La CSP dell'app (object-src 'none') impedirebbe a Chrome di renderizzare i
+  // PDF inline: questa risposta è un file, non una pagina — via la CSP.
+  // Sicuro: HTML/SVG/JS escono come text/plain, niente script sull'origin.
+  res.removeHeader('content-security-policy');
   res.setHeader('content-type', mimeFor(name));
   res.setHeader('content-length', st.size);
   res.setHeader('x-content-type-options', 'nosniff');
@@ -95,14 +99,19 @@ export async function streamDownload(p, res, asAttachment = false) {
 
 // Upload: pipa la request (stream raw) su SFTP.
 export async function streamUpload(p, req) {
+  return streamUploadFromStream(p, req);
+}
+
+// Scrive un readable qualsiasi su SFTP (upload UI, salvataggi OnlyOffice).
+export async function streamUploadFromStream(p, readable) {
   requireSsh();
   const sftp = await sshSftp();
   await new Promise((resolve, reject) => {
     const ws = sftp.createWriteStream(p);
     ws.on('error', reject);
     ws.on('close', resolve);
-    req.on('error', reject);
-    req.pipe(ws);
+    readable.on('error', reject);
+    readable.pipe(ws);
   });
 }
 

@@ -31,6 +31,8 @@ services:
       # UPDATE_CHECK_INTERVAL: 6h
       # UPDATE_VERIFY_TIMEOUT: 30s
       # NOTIFY_WEBHOOK_URL: ""
+      # ONLYOFFICE_URL: http://192.168.1.10:8082   # editor documenti Office (opzionale)
+      # ONLYOFFICE_JWT_SECRET: ""
     healthcheck:
       test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:8787/api/health"]
       interval: 30s

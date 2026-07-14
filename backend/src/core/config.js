@@ -42,6 +42,8 @@ export const config = {
   updateVerifyTimeout: env.UPDATE_VERIFY_TIMEOUT ? parseDuration(env.UPDATE_VERIFY_TIMEOUT, null) : null, // null = auto
 
   notifyWebhookUrl: env.NOTIFY_WEBHOOK_URL || null,
+  onlyofficeUrl: env.ONLYOFFICE_URL ? env.ONLYOFFICE_URL.replace(/\/+$/, '') : null,
+  onlyofficeJwtSecret: env.ONLYOFFICE_JWT_SECRET || null,
   notifyWebhookType: (env.NOTIFY_WEBHOOK_TYPE || '').toLowerCase() || null, // 'ntfy' | 'json' | null = auto dal hostname
 
   // Intervalli polling fallback SSH (spec §5), override via env
