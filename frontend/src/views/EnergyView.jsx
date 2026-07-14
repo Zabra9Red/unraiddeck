@@ -37,13 +37,22 @@ function StatTile({ label, kwh, cost, accent }) {
 // o per costo (asc/desc) cliccando l'intestazione.
 function HistoryTable() {
   const [gran, setGran] = useState('day');
+  const [within, setWithin] = useState(null); // drill-down: anno → mesi, mese → giorni
   const [rows, setRows] = useState(null);
   const [sort, setSort] = useState({ key: 'period', dir: 'desc' });
 
   useEffect(() => {
     setRows(null);
-    api.get(`/unraid/energy/breakdown?granularity=${gran}`).then(setRows).catch(() => setRows([]));
-  }, [gran]);
+    const q = within ? `&within=${within}` : '';
+    api.get(`/unraid/energy/breakdown?granularity=${gran}${q}`).then(setRows).catch(() => setRows([]));
+  }, [gran, within]);
+
+  const pick = (g) => { setWithin(null); setGran(g); };
+  // Click su una riga anno → i suoi mesi; su una riga mese → i suoi giorni
+  const drill = (r) => {
+    if (gran === 'year') { setWithin(r.period); setGran('month'); }
+    else if (gran === 'month') { setWithin(r.period); setGran('day'); }
+  };
 
   const fmtP = (p) => gran === 'day' ? fmtDay(p) + `/${p.slice(2, 4)}` : gran === 'month' ? fmtMonth(p) : p.replace('-W', ' sett. ');
   const sorted = (rows || []).slice().sort((a, b) => {
@@ -57,16 +66,26 @@ function HistoryTable() {
 
   return (
     <Card title={t.energyHistTitle}>
-      <div className="flex items-center gap-1.5 text-xs mb-2">
+      <div className="flex items-center gap-1.5 text-xs mb-2 flex-wrap">
         {[['day', t.energyGranDay], ['week', t.energyGranWeek], ['month', t.energyGranMonth], ['year', t.energyGranYear]].map(([g, label]) => (
           <button
             key={g}
-            onClick={() => setGran(g)}
-            className={`px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${gran === g ? 'border-yellow text-yellow bg-yellow/10' : 'border-surface1 text-subtext0 hover:border-overlay0'}`}
+            onClick={() => pick(g)}
+            className={`px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${gran === g && !within ? 'border-yellow text-yellow bg-yellow/10' : 'border-surface1 text-subtext0 hover:border-overlay0'}`}
           >
             {label}
           </button>
         ))}
+        {within && (
+          <button
+            onClick={() => { const y = within.length === 4; setWithin(y ? null : within.slice(0, 4)); setGran(y ? 'year' : 'month'); }}
+            className="px-2 py-0.5 rounded-md border border-yellow text-yellow bg-yellow/10 cursor-pointer"
+            title={t.energyDrillBack}
+          >
+            ← {within.length === 4 ? within : fmtMonth(within)}
+          </button>
+        )}
+        {gran !== 'day' && gran !== 'week' && <span className="text-overlay0">{t.energyDrillHint}</span>}
       </div>
       {!rows ? <Spinner /> : !rows.length ? (
         <div className="text-xs text-overlay0">{t.energyNoData}</div>
@@ -82,8 +101,12 @@ function HistoryTable() {
             </thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.period} className="border-t border-surface0">
-                  <td className="py-1 text-subtext1">{fmtP(r.period)}</td>
+                <tr
+                  key={r.period}
+                  className={`border-t border-surface0 ${gran === 'year' || gran === 'month' ? 'cursor-pointer hover:bg-surface0/40' : ''}`}
+                  onClick={() => drill(r)}
+                >
+                  <td className="py-1 text-subtext1">{fmtP(r.period)}{(gran === 'year' || gran === 'month') && <span className="text-overlay0"> ›</span>}</td>
                   <td className="py-1 text-right">{fmtK(r.kwh)}</td>
                   <td className="py-1 text-right text-yellow">{r.cost != null ? fmtE(r.cost) : '—'}</td>
                 </tr>

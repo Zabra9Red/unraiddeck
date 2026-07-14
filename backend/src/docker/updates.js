@@ -2,7 +2,7 @@
 // rollback automatico, gestione dipendenti net=container: (pattern VPN),
 // self-update via helper effimero, scheduler check con jitter.
 import pLimit from 'p-limit';
-import { db } from '../core/db.js';
+import { db, getSetting, setSetting } from '../core/db.js';
 import { config } from '../core/config.js';
 import { docker, features, selfId, withLock, HELPER_LABEL } from './manager.js';
 import { checkImageUpdate, cacheUpdateResult, authConfigFor, invalidateUpdateCache, allCachedResults } from './registry.js';
@@ -429,6 +429,64 @@ export function scheduleUpdateChecks() {
 }
 export function stopUpdateChecks() {
   if (checkTimer) clearTimeout(checkTimer);
+  if (autoTimer) clearTimeout(autoTimer);
+}
+
+// ---- Auto-update: applica gli update trovati, intervallo da settings ----
+let autoTimer = null;
+
+export function autoUpdateConfig() {
+  return getSetting('autoUpdate', { enabled: false, intervalHours: 8 });
+}
+
+export function setAutoUpdateConfig({ enabled, intervalHours }) {
+  const h = Number(intervalHours);
+  if (!Number.isFinite(h) || h < 1 || h > 168) {
+    const err = new Error('Intervallo auto-update non valido (1–168 ore)');
+    err.status = 400;
+    throw err;
+  }
+  setSetting('autoUpdate', { enabled: Boolean(enabled), intervalHours: h });
+  scheduleAutoUpdates();
+  return autoUpdateConfig();
+}
+
+// Aggiorna in sequenza tutti i container con update disponibile.
+// UnraidDeck stesso è ESCLUSO (il self-update resta manuale, via helper).
+async function runAutoUpdate() {
+  const results = await checkAllUpdates('auto-update');
+  const containers = await docker.listContainers({ all: true });
+  const targets = containers.filter(c =>
+    !c.Labels?.[HELPER_LABEL] && c.Id !== selfId && results[c.Image]?.status === 'update');
+  if (!targets.length) return;
+  let ok = 0;
+  const failed = [];
+  for (const c of targets) {
+    const name = (c.Names?.[0] || c.Id.slice(0, 12)).replace(/^\//, '');
+    try {
+      await updateContainer(c.Id, {}, 'auto-update');
+      ok += 1;
+    } catch (e) {
+      failed.push(`${name}: ${e.message}`);
+      log.warn(`[auto-update] ${name} fallito:`, e.message);
+    }
+  }
+  notify('auto-update', failed.length ? 'warning' : 'info',
+    `Auto-update: ${ok}/${targets.length} container aggiornati`,
+    failed.length ? failed.join('\n').slice(0, 500) : targets.map(c => (c.Names?.[0] || '').replace(/^\//, '')).join(', '));
+  audit('auto-update', 'updates.auto', 'globale', failed.length ? 'parziale' : 'ok', null, `${ok} ok, ${failed.length} falliti`);
+}
+
+export function scheduleAutoUpdates() {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  const cfg = autoUpdateConfig();
+  if (!cfg.enabled) return;
+  autoTimer = setTimeout(async () => {
+    try { await runAutoUpdate(); } catch (e) { log.warn('[auto-update] ciclo fallito:', e.message); }
+    scheduleAutoUpdates(); // rilegge l'intervallo dalle settings a ogni giro
+  }, Math.max(1, cfg.intervalHours) * 3600000);
+  autoTimer.unref?.();
+  log.info(`[auto-update] attivo, ogni ${cfg.intervalHours}h`);
 }
 
 export { allCachedResults };

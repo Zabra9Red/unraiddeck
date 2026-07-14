@@ -28,7 +28,9 @@ function fromB64(b64) {
   return bytes;
 }
 
-export function ExecPanel({ containerId }) {
+// Pannello terminale generico: prefix = namespace eventi socket
+// ('exec' per la console container, 'hostterm' per la shell SSH dell'host).
+export function TerminalPanel({ prefix, payload = {} }) {
   const holderRef = useRef(null);
   const [error, setError] = useState(null);
   const [ended, setEnded] = useState(null);
@@ -46,19 +48,19 @@ export function ExecPanel({ containerId }) {
 
     const onData = (msg) => { if (msg.sid === sid) term.write(fromB64(msg.data)); };
     const onEnd = (msg) => { if (msg.sid === sid) setEnded(msg.reason || 'Sessione terminata'); };
-    s.on('exec:data', onData);
-    s.on('exec:end', onEnd);
+    s.on(`${prefix}:data`, onData);
+    s.on(`${prefix}:end`, onEnd);
 
-    s.emit('exec:start', { containerId }, (res) => {
+    s.emit(`${prefix}:start`, { ...payload, cols: term.cols, rows: term.rows }, (res) => {
       if (disposed) return;
       if (res?.error) { setError(res.error); return; }
       sid = res.sid;
-      s.emit('exec:resize', { sid, cols: term.cols, rows: term.rows });
+      s.emit(`${prefix}:resize`, { sid, cols: term.cols, rows: term.rows });
       term.focus();
     });
 
-    const inputDisp = term.onData((data) => { if (sid) s.emit('exec:input', { sid, data: toB64(data) }); });
-    const resizeDisp = term.onResize(({ cols, rows }) => { if (sid) s.emit('exec:resize', { sid, cols, rows }); });
+    const inputDisp = term.onData((data) => { if (sid) s.emit(`${prefix}:input`, { sid, data: toB64(data) }); });
+    const resizeDisp = term.onResize(({ cols, rows }) => { if (sid) s.emit(`${prefix}:resize`, { sid, cols, rows }); });
     const ro = new ResizeObserver(() => { try { fit.fit(); } catch { /* smontato */ } });
     ro.observe(holderRef.current);
 
@@ -67,12 +69,13 @@ export function ExecPanel({ containerId }) {
       ro.disconnect();
       inputDisp.dispose();
       resizeDisp.dispose();
-      s.off('exec:data', onData);
-      s.off('exec:end', onEnd);
-      if (sid) s.emit('exec:close', { sid });
+      s.off(`${prefix}:data`, onData);
+      s.off(`${prefix}:end`, onEnd);
+      if (sid) s.emit(`${prefix}:close`, { sid });
       term.dispose();
     };
-  }, [containerId]);
+    // payload serializzato: le identità degli oggetti inline non devono riavviare la sessione
+  }, [prefix, JSON.stringify(payload)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex flex-col h-full min-h-0 gap-2">
@@ -82,4 +85,12 @@ export function ExecPanel({ containerId }) {
       <div ref={holderRef} className="flex-1 min-h-0 rounded-lg overflow-hidden border border-surface0 bg-crust p-1" />
     </div>
   );
+}
+
+export function ExecPanel({ containerId }) {
+  return <TerminalPanel prefix="exec" payload={{ containerId }} />;
+}
+
+export function HostTermPanel() {
+  return <TerminalPanel prefix="hostterm" />;
 }

@@ -19,7 +19,8 @@ import { startEvents, stopEvents } from './docker/events.js';
 import { stopStatsHub } from './docker/stats-hub.js';
 import { stopAllLogStreams } from './docker/logs.js';
 import { closeAllExecSessions } from './docker/exec.js';
-import { recoverJournal, scheduleUpdateChecks, stopUpdateChecks, bindUpdatesIo } from './docker/updates.js';
+import { closeAllHostTermSessions } from './unraid/host-term.js';
+import { recoverJournal, scheduleUpdateChecks, scheduleAutoUpdates, stopUpdateChecks, bindUpdatesIo } from './docker/updates.js';
 import { initUnraid, stopUnraid } from './unraid/poller.js';
 import { buildRouter } from './api/routes.js';
 import { initSockets } from './api/sockets.js';
@@ -95,6 +96,7 @@ async function main() {
   await recoverJournal();
   startEvents(io);
   scheduleUpdateChecks();
+  scheduleAutoUpdates();
 
   // Unraid: introspection GraphQL → capability map, oppure fallback SSH.
   // Non bloccante: il server parte anche se il GraphQL è lento/irraggiungibile.
@@ -124,6 +126,7 @@ async function main() {
       stopStatsHub();
       stopAllLogStreams();
       closeAllExecSessions();
+      closeAllHostTermSessions();
       stopUnraid();
       io.close();
       await new Promise((r) => server.close(r));

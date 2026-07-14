@@ -15,7 +15,7 @@ import * as manager from '../docker/manager.js';
 import { streamLogsDownload } from '../docker/logs.js';
 import { statsHistory } from '../docker/stats-hub.js';
 import { serveIcon } from '../docker/icons.js';
-import { updateContainer, findDependents, checkAllUpdates, checkOneUpdate, allCachedResults } from '../docker/updates.js';
+import { updateContainer, findDependents, checkAllUpdates, checkOneUpdate, allCachedResults, autoUpdateConfig, setAutoUpdateConfig } from '../docker/updates.js';
 import * as poller from '../unraid/poller.js';
 import { energyOverview, energyBreakdown, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
 
@@ -297,7 +297,17 @@ export function buildRouter() {
   });
 
   r.get('/unraid/energy/breakdown', (req, res, next) => {
-    try { res.json(energyBreakdown(req.query.granularity || 'day')); } catch (e) { next(e); }
+    try { res.json(energyBreakdown(req.query.granularity || 'day', req.query.within || null)); } catch (e) { next(e); }
+  });
+
+  // ---- Auto-update: config on/off + intervallo ore ----
+  r.get('/settings/auto-update', (_req, res) => res.json(autoUpdateConfig()));
+  r.post('/settings/auto-update', actionLimiter, (req, res, next) => {
+    try {
+      const cfg = setAutoUpdateConfig(req.body || {});
+      audit(req.user.username, 'settings.auto-update', `${cfg.enabled ? 'on' : 'off'} ${cfg.intervalHours}h`, 'ok', req.ip);
+      res.json(cfg);
+    } catch (e) { next(e); }
   });
 
   r.post('/unraid/energy/config', actionLimiter, (req, res, next) => {

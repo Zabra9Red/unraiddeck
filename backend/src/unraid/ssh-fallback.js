@@ -75,6 +75,17 @@ export function sshClose() {
   connected = false;
 }
 
+// Shell interattiva PTY per il terminale host (xterm lato client).
+export async function sshShell({ cols = 80, rows = 24 } = {}) {
+  const c = await ensureConnected();
+  return new Promise((resolve, reject) => {
+    c.shell({ term: 'xterm-256color', cols, rows }, (err, stream) => {
+      if (err) return reject(err);
+      resolve(stream);
+    });
+  });
+}
+
 // Esegue un comando remoto → { code, stdout, stderr }
 export async function sshExec(command, timeoutMs = 20000) {
   const c = await ensureConnected();

@@ -165,17 +165,29 @@ const BREAKDOWN = {
   year: { fmt: '%Y', limit: 20 },
 };
 
-export function energyBreakdown(granularity = 'day') {
+// `within` = drill-down: es. granularity=month within=2026 (i mesi di quell'anno)
+// oppure granularity=day within=2026-07 (i giorni di quel mese).
+export function energyBreakdown(granularity = 'day', within = null) {
   const g = BREAKDOWN[granularity];
   if (!g) {
     const err = new Error('Granularità non valida (day|week|month|year)');
     err.status = 400;
     throw err;
   }
-  const rows = db.prepare(
-    `SELECT strftime('${g.fmt}', hour * 3600, 'unixepoch', 'localtime') AS period,
-            SUM(wh) / 1000.0 AS kwh
-     FROM ups_energy GROUP BY period ORDER BY period DESC LIMIT ?`).all(g.limit);
+  if (within != null && !/^\d{4}(-\d{2})?$/.test(String(within))) {
+    const err = new Error('Filtro periodo non valido (YYYY o YYYY-MM)');
+    err.status = 400;
+    throw err;
+  }
+  const rows = within
+    ? db.prepare(
+      `SELECT strftime('${g.fmt}', hour * 3600, 'unixepoch', 'localtime') AS period,
+              SUM(wh) / 1000.0 AS kwh
+       FROM ups_energy GROUP BY period HAVING period LIKE ? ORDER BY period DESC LIMIT 62`).all(`${within}%`)
+    : db.prepare(
+      `SELECT strftime('${g.fmt}', hour * 3600, 'unixepoch', 'localtime') AS period,
+              SUM(wh) / 1000.0 AS kwh
+       FROM ups_energy GROUP BY period ORDER BY period DESC LIMIT ?`).all(g.limit);
   const price = getSetting('energy.pricePerKwh', null);
   return rows.map(r => ({
     period: r.period,

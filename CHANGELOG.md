@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.10.0] — 2026-07-14
+
+### Aggiunto
+- **Terminale host Unraid** nella tab Unraid (xterm su shell SSH, PTY con resize, timeout 15 min, max 2 sessioni/utente, audit). Richiede il fallback SSH configurato (`SSH_USER` + `SSH_PASSWORD` o `SSH_KEY`).
+- **Aggiornamenti automatici dei container**: toggle in Impostazioni con intervallo configurabile (default 8 ore, 1–168). A ogni ciclo: check aggiornamenti e update sequenziale con la stessa procedura sicura di quello manuale (journal, rollback, dipendenti VPN); UnraidDeck stesso è escluso. Notifica con l'esito.
+- **Drill-down nello storico energia**: click su un anno → i suoi mesi, click su un mese → i suoi giorni (con breadcrumb per tornare indietro); API `within=YYYY|YYYY-MM` su `/api/unraid/energy/breakdown`.
+
 ## [1.9.1] — 2026-07-08
 
 ### Corretto

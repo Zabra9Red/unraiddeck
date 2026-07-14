@@ -17,12 +17,14 @@ export function SettingsView({ me, onLogout }) {
   const [pw, setPw] = useState({ old: '', new1: '', new2: '' });
   const [reg, setReg] = useState({ registry: '', username: '', password: '' });
   const [threshold, setThreshold] = useState(45);
+  const [autoUpd, setAutoUpd] = useState({ enabled: false, intervalHours: 8 });
 
   const load = async () => {
-    const [s, sess] = await Promise.all([api.get('/settings'), api.get('/sessions')]);
+    const [s, sess, au] = await Promise.all([api.get('/settings'), api.get('/sessions'), api.get('/settings/auto-update')]);
     setSettings(s);
     setThreshold(s.tempThreshold);
     setSessions(sess);
+    setAutoUpd(au);
   };
   useEffect(() => { load().catch((e) => toast.error(t.error, e.message)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -64,6 +66,14 @@ export function SettingsView({ me, onLogout }) {
       await api.put('/settings', { tempThreshold: threshold });
       toast.ok(t.thresholds, `Soglia ${threshold}°C salvata`);
     } catch (e) { toast.error(t.thresholds, e.message); }
+  };
+
+  const saveAutoUpdate = async (next) => {
+    try {
+      const cfg = await api.post('/settings/auto-update', next);
+      setAutoUpd(cfg);
+      toast.ok(t.autoUpdateTitle, cfg.enabled ? t.autoUpdateOn(cfg.intervalHours) : t.autoUpdateOff);
+    } catch (e) { toast.error(t.autoUpdateTitle, e.message); }
   };
 
   const addRegistry = async (e) => {
@@ -173,6 +183,29 @@ export function SettingsView({ me, onLogout }) {
           </Btn>
         </div>
         <div className="text-xs text-overlay0 mt-3">{t.version}: {me?.version || '—'}</div>
+      </Card>
+
+      <Card title={t.autoUpdateTitle}>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer pb-1.5">
+            <input
+              type="checkbox"
+              checked={autoUpd.enabled}
+              onChange={(e) => saveAutoUpdate({ ...autoUpd, enabled: e.target.checked })}
+              className="accent-[#89b4fa] w-4 h-4"
+            />
+            {t.autoUpdateEnable}
+          </label>
+          <Input
+            label={t.autoUpdateInterval}
+            type="number" min="1" max="168" inputMode="numeric"
+            value={autoUpd.intervalHours}
+            onChange={(e) => setAutoUpd({ ...autoUpd, intervalHours: parseInt(e.target.value || '8', 10) })}
+            className="max-w-24"
+          />
+          <Btn variant="primary" onClick={() => saveAutoUpdate(autoUpd)}>{t.save}</Btn>
+        </div>
+        <div className="text-xs text-overlay0 mt-3">{t.autoUpdateHint}</div>
       </Card>
 
       {totpModal && !totpModal.recoveryCodes && (

@@ -1,7 +1,7 @@
 // Vista Unraid: array/parity, dischi (temp da fonte passiva, SMART on-demand),
 // pool, share, sistema, VM, UPS, power host. Degradazione PER-SEZIONE con
 // motivo visibile e canale attivo (GraphQL/SSH) indicato.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { api } from '../api.js';
 import { getSocket, subscribe } from '../socket.js';
 import { Btn, Badge, Card, Spinner, EmptyState, Meter } from '../components/ui.jsx';
@@ -9,12 +9,15 @@ import { Modal, ConfirmTyped } from '../components/Modal.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { t, fmtBytes, fmtUptime, fmtTs } from '../i18n.js';
 
+const HostTermPanel = lazy(() => import('../components/ExecPanel.jsx').then((m) => ({ default: m.HostTermPanel })));
+
 export function UnraidView() {
   const toast = useToast();
   const [snap, setSnap] = useState(null);
   const [confirm, setConfirm] = useState(null);   // {type: 'array-stop'|'power', action}
   const [smart, setSmart] = useState(null);       // {device, loading, data}
   const [history, setHistory] = useState(null);
+  const [hostTerm, setHostTerm] = useState(false);
 
   const load = () => api.get('/unraid/state').then(setSnap).catch((e) => toast.error(t.error, e.message));
 
@@ -124,6 +127,10 @@ export function UnraidView() {
         <Badge color={snap.mode === 'graphql' ? 'green' : 'yellow'}>
           {snap.mode === 'graphql' ? t.unraidModeGraphql : t.unraidModeSsh}
         </Badge>
+        <div className="grow" />
+        {snap.sshConfigured && (
+          <Btn size="sm" onClick={() => setHostTerm(true)}>{t.hostTerm}</Btn>
+        )}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -381,6 +388,15 @@ export function UnraidView() {
       </div>
 
       {/* Modali */}
+      {hostTerm && (
+        <Modal title={t.hostTerm} onClose={() => setHostTerm(false)} wide>
+          <div className="h-[60vh]">
+            <Suspense fallback={<div className="flex justify-center py-10"><Spinner /></div>}>
+              <HostTermPanel />
+            </Suspense>
+          </div>
+        </Modal>
+      )}
       {confirm?.type === 'array-stop' && (
         <ConfirmTyped
           title={t.arrayStop}

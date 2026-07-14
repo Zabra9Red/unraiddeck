@@ -5,6 +5,7 @@ import { socketAuth, socketOriginOk } from '../core/auth.js';
 import { initStatsHub } from '../docker/stats-hub.js';
 import { initLogsHub } from '../docker/logs.js';
 import { initExecHub } from '../docker/exec.js';
+import { initHostTermHub } from '../unraid/host-term.js';
 import { log } from '../core/util.js';
 
 const ROOM_RX = /^(events|stats|unraid|notify|logs:[0-9a-f]{12,64}|update:[0-9a-f]{12})$/;
@@ -23,6 +24,7 @@ export function initSockets(io) {
   initStatsHub(io);
   initLogsHub(io);
   initExecHub(io);
+  initHostTermHub(io);
 
   io.on('connection', (socket) => {
     socket.on('subscribe', (room) => {
