@@ -16,6 +16,8 @@ services:
       # se il container parte prima di libvirtd, Docker creerebbe la source
       # mancante come directory e libvirtd non potrebbe più creare il socket.
       # - /var/run/libvirt:/var/run/libvirt
+      # File manager locale (viewer/editor completi):
+      # - /mnt:/unraid:rslave
     environment:
       TZ: Europe/Rome
       # PASSWORD: cambiami-subito        # solo bootstrap primo avvio

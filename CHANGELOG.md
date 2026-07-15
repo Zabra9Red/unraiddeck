@@ -2,6 +2,16 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.15.0] — 2026-07-15
+
+### Aggiunto (Viewer & Editor universale — fase 1)
+- **File system locale**: nuovo mount opzionale `/mnt → /unraid` (propagation slave, nel template CA). Quando presente, il file manager lavora in locale (più veloce, streaming con Range); senza, resta il canale SSH/SFTP.
+- **Detection sul contenuto**: magic bytes (`file-type`) → `file --mime-type` → euristica testo; l'estensione è solo un hint. File sensibili (chiavi, .env, kdbx) → conferma + audit.
+- **Viewer universale** con registry e fallback garantito: immagini (zoom/rotazione), audio/video nativi con seek (Range), **PDF via pdf.js bundlato** (niente CDN), Markdown sanificato (DOMPurify), JSON tree, **editor CodeMirror** per testo/codice con highlight 100+ linguaggi, **hex viewer** per qualsiasi file (finestre da 64 KB). Menu «Apri con…»; nessun file è "non apribile".
+- **Salvataggio atomico FUSE-safe**: tmp nella stessa directory + fsync + rename (niente EXDEV su /mnt/user), permessi/owner preservati, encoding/BOM/EOL rilevati e mantenuti, conflitto se il file è cambiato su disco (409).
+- **Versioning**: backup `.orig` al primo salvataggio, storico versioni con ripristino dalla UI (`FM_KEEP_VERSIONS`, default 3).
+- Binari runtime per le prossime fasi (ffmpeg, libarchive, exiftool, poppler, vips, openssl) inclusi nell'immagine.
+
 ## [1.14.0] — 2026-07-14
 
 ### Aggiunto

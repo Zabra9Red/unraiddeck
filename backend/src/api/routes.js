@@ -20,6 +20,8 @@ import * as poller from '../unraid/poller.js';
 import { energyOverview, energyBreakdown, getEnergyConfig, setEnergyConfig } from '../unraid/energy.js';
 import * as files from '../unraid/files.js';
 import * as office from '../unraid/office.js';
+import * as lfs from '../files/local-fs.js';
+import fsp from 'node:fs/promises';
 
 export function buildRouter() {
   const r = Router();
@@ -332,56 +334,130 @@ export function buildRouter() {
     try { res.json(energyBreakdown(req.query.granularity || 'day', req.query.within || null)); } catch (e) { next(e); }
   });
 
-  // ---- File manager share (SFTP, percorsi confinati sotto /mnt) ----
+  // ---- File manager: bind mount locale (/unraid) se presente, altrimenti SFTP (/mnt) ----
+  const useLocal = () => lfs.fmAvailable();
+  const anyPath = async (p, opts) => useLocal() ? lfs.resolveSafe(p, opts) : files.safePath(p);
+
   r.get('/unraid/files', async (req, res, next) => {
     try {
+      if (useLocal()) {
+        const p = await lfs.resolveSafe(req.query.path);
+        return res.json({ path: p, entries: await lfs.listDir(p), office: office.officeConfigured(), localFs: true });
+      }
       const p = files.safePath(req.query.path);
-      res.json({ path: p, entries: await files.listDir(p), office: office.officeConfigured() });
+      res.json({ path: p, entries: await files.listDir(p), office: office.officeConfigured(), localFs: false });
     } catch (e) { next(e); }
   });
   r.get('/unraid/files/download', async (req, res, next) => {
     try {
-      const p = files.safePath(req.query.path);
-      await files.streamDownload(p, res, req.query.dl === '1');
+      if (useLocal()) {
+        const p = await lfs.resolveSafe(req.query.path);
+        res.setHeader('content-disposition', `${req.query.dl === '1' ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(p.split('/').pop())}`);
+        return lfs.streamRaw(p, req, res);
+      }
+      await files.streamDownload(files.safePath(req.query.path), res, req.query.dl === '1');
     } catch (e) { next(e); }
   });
   r.get('/unraid/files/peek', async (req, res, next) => {
-    try { res.json(await files.peek(files.safePath(req.query.path))); } catch (e) { next(e); }
+    try {
+      if (useLocal()) {
+        const i = await lfs.inspect(await lfs.resolveSafe(req.query.path));
+        return res.json({ isText: i.isText, size: i.size });
+      }
+      res.json(await files.peek(files.safePath(req.query.path)));
+    } catch (e) { next(e); }
   });
   r.get('/unraid/files/extract', async (req, res, next) => {
-    try { res.json(await files.extractText(files.safePath(req.query.path))); } catch (e) { next(e); }
+    try {
+      const p = await anyPath(req.query.path);
+      if (useLocal()) {
+        const st = await fsp.stat(p);
+        if (st.size > 20 * 1024 * 1024) return res.status(400).json({ error: 'File troppo grande (max 20 MB)' });
+        return res.json(files.extractTextFromBuffer(await fsp.readFile(p), p.split('.').pop().toLowerCase()));
+      }
+      res.json(await files.extractText(p));
+    } catch (e) { next(e); }
   });
   r.put('/unraid/files/upload', actionLimiter, async (req, res, next) => {
     try {
-      const p = files.safePath(req.query.path);
-      await files.streamUpload(p, req);
+      const p = await anyPath(req.query.path, { mustExist: false });
+      if (useLocal()) await lfs.saveAtomic(p, req, { user: req.user.username });
+      else await files.streamUpload(p, req);
       audit(req.user.username, 'files.upload', p, 'ok', req.ip);
       res.json({ ok: true });
     } catch (e) { next(e); }
   });
   r.post('/unraid/files/mkdir', actionLimiter, async (req, res, next) => {
     try {
-      const p = files.safePath(req.body?.path);
-      await files.mkdir(p);
+      const p = await anyPath(req.body?.path, { mustExist: false });
+      if (useLocal()) await lfs.mkdirLocal(p); else await files.mkdir(p);
       audit(req.user.username, 'files.mkdir', p, 'ok', req.ip);
       res.json({ ok: true });
     } catch (e) { next(e); }
   });
   r.post('/unraid/files/rename', actionLimiter, async (req, res, next) => {
     try {
-      const from = files.safePath(req.body?.from);
-      const to = files.safePath(req.body?.to);
-      await files.rename(from, to);
+      const from = await anyPath(req.body?.from);
+      const to = await anyPath(req.body?.to, { mustExist: false });
+      if (useLocal()) await lfs.renameLocal(from, to); else await files.rename(from, to);
       audit(req.user.username, 'files.rename', `${from} → ${to}`, 'ok', req.ip);
       res.json({ ok: true });
     } catch (e) { next(e); }
   });
   r.post('/unraid/files/delete', actionLimiter, async (req, res, next) => {
     try {
-      const p = files.safePath(req.body?.path);
-      await files.remove(p);
+      const p = await anyPath(req.body?.path);
+      if (useLocal()) await lfs.removeLocal(p); else await files.remove(p);
       audit(req.user.username, 'files.delete', p, 'ok', req.ip);
       res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  // ---- Viewer&Editor v1.2 (solo file system locale): inspect, raw, save, versioni ----
+  r.get('/fs/inspect', async (req, res, next) => {
+    try {
+      if (!useLocal()) return res.status(400).json({ error: 'File system locale non montato (aggiungi il mount /mnt → /unraid)' });
+      const p = await lfs.resolveSafe(req.query.path);
+      const out = await lfs.inspect(p);
+      if (out.sensitive) audit(req.user.username, 'files.inspect-sensitive', p, 'ok', req.ip);
+      res.json(out);
+    } catch (e) { next(e); }
+  });
+  r.get('/fs/raw', async (req, res, next) => {
+    try {
+      if (!useLocal()) return res.status(400).json({ error: 'File system locale non montato' });
+      await lfs.streamRaw(await lfs.resolveSafe(req.query.path), req, res);
+    } catch (e) { next(e); }
+  });
+  r.head('/fs/raw', async (req, res, next) => {
+    try {
+      if (!useLocal()) return res.status(400).end();
+      await lfs.streamRaw(await lfs.resolveSafe(req.query.path), req, res);
+    } catch (e) { next(e); }
+  });
+  r.put('/fs/save', actionLimiter, async (req, res, next) => {
+    try {
+      if (!useLocal()) return res.status(400).json({ error: 'File system locale non montato' });
+      const p = await lfs.resolveSafe(req.query.path, { mustExist: false });
+      const out = await lfs.saveAtomic(p, req, { baseMtime: req.headers['x-base-mtime'] || null, user: req.user.username });
+      audit(req.user.username, 'files.save', p, 'ok', req.ip);
+      res.json(out);
+    } catch (e) { next(e); }
+  });
+  r.get('/fs/versions', async (req, res, next) => {
+    try {
+      const p = await lfs.resolveSafe(req.query.path);
+      res.json(await lfs.listVersions(p));
+    } catch (e) { next(e); }
+  });
+  r.post('/fs/versions/restore', actionLimiter, async (req, res, next) => {
+    try {
+      const p = await lfs.resolveSafe(req.body?.path);
+      const vf = lfs.versionFile(p, parseInt(req.body?.ts, 10));
+      const { createReadStream } = await import('node:fs');
+      const out = await lfs.saveAtomic(p, createReadStream(vf), { user: req.user.username });
+      audit(req.user.username, 'files.version-restore', `${p} @ ${req.body?.ts}`, 'ok', req.ip);
+      res.json(out);
     } catch (e) { next(e); }
   });
 

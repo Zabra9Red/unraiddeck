@@ -17,7 +17,7 @@ RUN npm run build
 # ---- Stage runtime: solo artefatti + tini (PID 1) ----
 FROM node:22-alpine
 ARG UNRAIDDECK_VERSION
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini ffmpeg file libarchive-tools p7zip exiftool poppler-utils vips-tools openssl ttf-dejavu
 ENV NODE_ENV=production \
     TZ=Europe/Rome \
     UNRAIDDECK_VERSION=${UNRAIDDECK_VERSION}

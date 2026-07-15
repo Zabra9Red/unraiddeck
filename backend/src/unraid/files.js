@@ -264,8 +264,11 @@ export function unzipList(buf, rx) {
 // Estrae il testo leggibile da docx/odt/rtf/pptx/xlsx/ods/doc → { text, lossy }.
 export async function extractText(p) {
   requireSsh();
-  const ext = String(p).split('.').pop().toLowerCase();
   const buf = await readAll(p);
+  return extractTextFromBuffer(buf, String(p).split('.').pop().toLowerCase());
+}
+
+export function extractTextFromBuffer(buf, ext) {
   if (ext === 'docx') return { text: xmlToText(unzipEntry(buf, 'word/document.xml').toString('utf8')), lossy: false };
   if (ext === 'odt' || ext === 'ods' || ext === 'odp') return { text: xmlToText(unzipEntry(buf, 'content.xml').toString('utf8')), lossy: false };
   if (ext === 'pptx') {

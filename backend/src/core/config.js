@@ -44,6 +44,12 @@ export const config = {
   notifyWebhookUrl: env.NOTIFY_WEBHOOK_URL || null,
   onlyofficeUrl: env.ONLYOFFICE_URL ? env.ONLYOFFICE_URL.replace(/\/+$/, '') : null,
   onlyofficeJwtSecret: env.ONLYOFFICE_JWT_SECRET || null,
+
+  // File manager locale (bind mount /mnt → /unraid) — spec Viewer&Editor v1.2
+  fmRoots: env.FM_ROOTS || '/unraid',
+  fmEditEnabled: bool(env.FM_EDIT_ENABLED, true),
+  fmKeepVersions: Math.max(0, parseInt(env.FM_KEEP_VERSIONS || '3', 10) || 0),
+  fmOrigBackup: bool(env.FM_ORIG_BACKUP, true),
   notifyWebhookType: (env.NOTIFY_WEBHOOK_TYPE || '').toLowerCase() || null, // 'ntfy' | 'json' | null = auto dal hostname
 
   // Intervalli polling fallback SSH (spec §5), override via env
@@ -54,7 +60,7 @@ export const config = {
   pollUps: parseDuration(env.POLL_UPS, 10000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.14.0',
+  version: env.UNRAIDDECK_VERSION || '1.15.0',
 };
 
 export default config;
