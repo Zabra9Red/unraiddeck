@@ -94,7 +94,11 @@ export function webdavMiddleware() {
         case 'HEAD': {
           const st = await fsp.stat(p);
           if (st.isDirectory()) {
-            // Browser: listing HTML navigabile (i client WebDAV usano PROPFIND)
+            // Browser (Accept: text/html): vai al gestionale vero (tab File).
+            // I client WebDAV usano PROPFIND e non passano di qui.
+            if ((req.headers.accept || '').includes('text/html')) {
+              return res.redirect(302, `/#files:${encodeURIComponent(p)}`);
+            }
             if (req.method === 'HEAD') return res.status(200).end();
             const entries = (await fsp.readdir(p, { withFileTypes: true }))
               .filter((e) => !e.name.startsWith('.'))

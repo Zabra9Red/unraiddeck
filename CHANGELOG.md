@@ -2,6 +2,12 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.18.0] — 2026-07-15
+
+### Aggiunto
+- **File manager stile Drive/Nextcloud**: vista a **griglia con miniature** (foto/video via cache thumbnail, toggle griglia/lista persistente), **drag & drop** per caricare più file insieme (upload multiplo anche dal pulsante), azioni al passaggio del mouse sulle card.
+- **Deep-link alle cartelle** (`#files:<percorso>`): il refresh riapre la cartella in cui eri; aprire `/dav` nel browser porta direttamente al gestionale (i client WebDAV continuano indisturbati con PROPFIND).
+
 ## [1.17.2] — 2026-07-15
 
 ### Corretto

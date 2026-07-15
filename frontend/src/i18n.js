@@ -212,6 +212,8 @@ export const t = {
   filesNewFolder: 'Nuova cartella',
   filesNewFolderPrompt: 'Nome della nuova cartella:',
   filesUpload: 'Carica file',
+  filesUploaded: (n) => `${n} file caricat${n === 1 ? 'o' : 'i'}`,
+  filesDropHere: 'Rilascia qui per caricare',
   filesDownload: 'Scarica',
   filesRename: 'Rinomina',
   filesRenamePrompt: 'Nuovo nome:',

@@ -296,16 +296,26 @@ export function FilesView() {
   const [universal, setUniversal] = useState(null);   // viewer universale (fs locale)
   const [shareItem, setShareItem] = useState(null);
   const [sharesOpen, setSharesOpen] = useState(false);
+  const [view, setView] = useState(() => localStorage.getItem('unraiddeck.filesView') || 'grid');
+  const [dragging, setDragging] = useState(false);
+  const pickView = (v) => { setView(v); try { localStorage.setItem('unraiddeck.filesView', v); } catch { /* pieno */ } };
   const [busy, setBusy] = useState(false);
   const uploadRef = useRef(null);
 
   const load = (p) => {
     setError(null);
     api.get(`/unraid/files?path=${encodeURIComponent(p)}`)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        // Deep-link: #files:<path> — refresh e /dav riaprono la cartella giusta
+        try { history.replaceState(null, '', `#files:${encodeURIComponent(d.path)}`); } catch { /* ignora */ }
+      })
       .catch((e) => setError(e.message));
   };
-  useEffect(() => { load(''); }, []); // path vuoto: il backend sceglie il root giusto (locale o SFTP)
+  useEffect(() => {
+    const m = window.location.hash.match(/^#files:(.+)$/);
+    load(m ? decodeURIComponent(m[1]) : ''); // senza deep-link il backend sceglie il root
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error && !data) {
     return <Card title={t.tabFiles}><div className="text-sm text-peach bg-peach/10 border border-peach/30 rounded-lg px-3 py-2">{error}</div></Card>;
@@ -332,29 +342,59 @@ export function FilesView() {
     try { await api.post('/unraid/files/delete', { path: `${data.path}/${entry.name}` }); load(data.path); }
     catch (e) { toast.error(t.tabFiles, e.message); }
   };
-  const doUpload = async (file) => {
+  const doUploadMany = async (fileList) => {
+    const files = [...fileList].filter((f) => f.size > 0 || f.type); // scarta directory trascinate
+    if (!files.length) return;
     setBusy(true);
-    try {
-      const res = await fetch(`/api/unraid/files/upload?path=${encodeURIComponent(`${data.path}/${file.name}`)}`, {
-        method: 'PUT', body: file, credentials: 'same-origin',
-      });
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || `HTTP ${res.status}`);
-      toast.ok(t.tabFiles, `${file.name} caricato`);
-      load(data.path);
-    } catch (e) { toast.error(t.tabFiles, e.message); }
+    let ok = 0;
+    const errors = [];
+    for (const f of files) {
+      try {
+        const res = await fetch(`/api/unraid/files/upload?path=${encodeURIComponent(`${data.path}/${f.name}`)}`, {
+          method: 'PUT', body: f, credentials: 'same-origin',
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || `HTTP ${res.status}`);
+        ok += 1;
+      } catch (err) { errors.push(`${f.name}: ${err.message}`); }
+    }
+    if (ok) toast.ok(t.tabFiles, t.filesUploaded(ok));
+    if (errors.length) toast.error(t.tabFiles, errors.join(' · ').slice(0, 200));
+    load(data.path);
     setBusy(false);
   };
+
+  // Routing apertura (condiviso tra lista e griglia)
+  const openEntry = (e) => {
+    const full = { ...e, path: `${data.path}/${e.name}` };
+    const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
+    if (e.type === 'dir') load(full.path);
+    else if (data.officeMode === 'collabora' && COLLABORA_EXT.includes(ext)) setCollabDoc(full);
+    else if (data.office && officeSupported(e.name)) setOfficeDoc(full);
+    else if (['xlsx', 'xls', 'ods', 'xlsm'].includes(ext)) setSheetDoc(full);
+    else if (ext === 'docx') setDocxDoc(full);
+    else if (data.localFs) setUniversal(full.path);
+    else setPreview(full);
+  };
+  const thumbable = (e) => data.localFs && e.type === 'file' && ['image', 'video'].includes(kindFor(e.name));
 
   return (
     <div className="space-y-3">
       <Card
         title={t.tabFiles}
         right={
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 items-center">
+            <div className="flex rounded-lg border border-surface1 overflow-hidden mr-1">
+              {[['grid', '▦'], ['list', '☰']].map(([v, icon]) => (
+                <button key={v} onClick={() => pickView(v)} title={v}
+                  className={`px-2 py-1 text-sm cursor-pointer ${view === v ? 'bg-surface0 text-text' : 'text-subtext0 hover:bg-surface0/50'}`}>
+                  {icon}
+                </button>
+              ))}
+            </div>
             {data.localFs && <Btn size="sm" variant="ghost" onClick={() => setSharesOpen(true)}>{t.shareList}</Btn>}
             <Btn size="sm" onClick={doMkdir}>{t.filesNewFolder}</Btn>
             <Btn size="sm" onClick={() => uploadRef.current?.click()} disabled={busy}>{busy ? <Spinner /> : t.filesUpload}</Btn>
-            <input ref={uploadRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) doUpload(f); e.target.value = ''; }} />
+            <input ref={uploadRef} type="file" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) doUploadMany(e.target.files); e.target.value = ''; }} />
           </div>
         }
       >
@@ -374,7 +414,51 @@ export function FilesView() {
         </div>
         {error && <div className="text-xs text-peach bg-peach/10 border border-peach/30 rounded-lg px-2.5 py-1.5 mb-2">{error}</div>}
 
-        {data.entries.length === 0 ? <EmptyState>{t.filesEmpty}</EmptyState> : (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); if (e.dataTransfer?.files?.length) doUploadMany(e.dataTransfer.files); }}
+          className={`relative rounded-lg transition-colors ${dragging ? 'outline-2 outline-dashed outline-blue bg-blue/5' : ''}`}
+        >
+          {dragging && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-crust/70 rounded-lg pointer-events-none">
+              <span className="text-blue font-medium">{t.filesDropHere}</span>
+            </div>
+          )}
+        {data.entries.length === 0 ? <EmptyState>{t.filesEmpty}</EmptyState> : view === 'grid' ? (
+          <div className="max-h-[65vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2">
+              {segs.length > 1 && (
+                <button onClick={() => load('/' + segs.slice(0, -1).join('/'))}
+                  className="aspect-square rounded-xl border border-surface0 bg-mantle hover:bg-surface0/40 cursor-pointer flex flex-col items-center justify-center gap-1">
+                  <span className="text-3xl">📁</span><span className="text-xs text-subtext0">..</span>
+                </button>
+              )}
+              {data.entries.map((e) => (
+                <div key={e.name} className="group relative">
+                  <button onClick={() => openEntry(e)} title={e.name}
+                    className="w-full aspect-square rounded-xl border border-surface0 bg-mantle hover:border-overlay0 cursor-pointer overflow-hidden flex flex-col">
+                    {thumbable(e) ? (
+                      <img src={`/api/cloud/thumb?path=${encodeURIComponent(`${data.path}/${e.name}`)}&kind=${kindFor(e.name)}`}
+                        alt="" loading="lazy" className="w-full flex-1 min-h-0 object-cover" />
+                    ) : (
+                      <span className="flex-1 flex items-center justify-center text-4xl select-none">
+                        {ICON[e.type === 'file' ? kindFor(e.name) : e.type] || '📦'}
+                      </span>
+                    )}
+                    <span className="px-1.5 py-1 text-[11px] truncate w-full text-left bg-base/80">{e.name}</span>
+                  </button>
+                  <div className="absolute top-1 right-1 hidden group-hover:flex gap-0.5 bg-crust/90 rounded-md px-1 py-0.5">
+                    {e.type === 'file' && <a href={dlUrl(`${data.path}/${e.name}`, true)} download className="text-xs hover:text-blue px-0.5" title={t.filesDownload}>⬇</a>}
+                    {data.localFs && <button onClick={() => setShareItem({ ...e, path: `${data.path}/${e.name}` })} className="text-xs hover:text-blue px-0.5 cursor-pointer" title={t.shareTitle}>🔗</button>}
+                    <button onClick={() => doRename(e)} className="text-xs hover:text-yellow px-0.5 cursor-pointer" title={t.filesRename}>✎</button>
+                    <button onClick={() => doDelete(e)} className="text-xs hover:text-red px-0.5 cursor-pointer" title={t.filesDelete}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
           <div className="max-h-[65vh] overflow-y-auto pr-1">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-base">
@@ -395,17 +479,7 @@ export function FilesView() {
                   <tr key={e.name} className="border-t border-surface0 hover:bg-surface0/40">
                     <td
                       className="py-1.5 cursor-pointer truncate max-w-0 w-full"
-                      onClick={() => {
-                        const full = { ...e, path: `${data.path}/${e.name}` };
-                        const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
-                        if (e.type === 'dir') load(full.path);
-                        else if (data.officeMode === 'collabora' && COLLABORA_EXT.includes(ext)) setCollabDoc(full);
-                        else if (data.office && officeSupported(e.name)) setOfficeDoc(full);
-                        else if (['xlsx', 'xls', 'ods', 'xlsm'].includes(ext)) setSheetDoc(full);
-                        else if (ext === 'docx') setDocxDoc(full);
-                        else if (data.localFs) setUniversal(full.path);
-                        else setPreview(full);
-                      }}
+                      onClick={() => openEntry(e)}
                       title={e.name}
                     >
                       <span className="mr-1.5">{ICON[e.type === 'file' ? kindFor(e.name) : e.type]}</span>
@@ -429,6 +503,7 @@ export function FilesView() {
             </table>
           </div>
         )}
+        </div>
         <div className="text-[11px] text-overlay0 mt-2">{t.filesHint}</div>
       </Card>
 

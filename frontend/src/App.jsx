@@ -20,7 +20,7 @@ const TAB_IDS = ['docker', 'unraid', 'energy', 'files', 'photos', 'audit', 'sett
 // Tab iniziale: hash URL (#energy) > localStorage > default. Così il refresh
 // (e il ripristino della PWA) restano sulla tab aperta.
 function initialTab() {
-  const h = window.location.hash.replace('#', '');
+  const h = window.location.hash.replace('#', '').split(':')[0]; // "files:/path" → "files"
   if (TAB_IDS.includes(h)) return h;
   const saved = localStorage.getItem('unraiddeck.tab');
   return TAB_IDS.includes(saved) ? saved : 'docker';
@@ -34,7 +34,7 @@ export default function App() {
   const selectTab = (id) => {
     setTab(id);
     try {
-      history.replaceState(null, '', `#${id}`);
+      history.replaceState(null, '', `#${id}`); // il deep-link di percorso lo gestisce la vista
       localStorage.setItem('unraiddeck.tab', id);
     } catch { /* storage non disponibile */ }
   };
