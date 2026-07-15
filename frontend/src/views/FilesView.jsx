@@ -13,6 +13,7 @@ const SpreadsheetEditor = lazy(() => import('../components/OfficeLocal.jsx').the
 const DocxPanel = lazy(() => import('../components/OfficeLocal.jsx').then((m) => ({ default: m.DocxPanel })));
 // Viewer universale (spec v1.2): attivo quando il file system è montato in locale
 const ViewerModal = lazy(() => import('../viewers/ViewerModal.jsx').then((m) => ({ default: m.ViewerModal })));
+const PdfInline = lazy(() => import('../viewers/PdfViewer.jsx'));
 
 const TEXT_EXT = ['txt', 'md', 'log', 'conf', 'cfg', 'ini', 'yml', 'yaml', 'sh', 'py', 'js', 'ts', 'jsx', 'tsx',
   'css', 'html', 'htm', 'xml', 'svg', 'csv', 'json', 'c', 'cpp', 'cc', 'h', 'hpp', 'java', 'go', 'rs', 'php',
@@ -79,6 +80,29 @@ function OfficeEditor({ item, onClose }) {
   );
 }
 
+// Editor Collabora embedded (immagine :office): iframe same-origin via proxy
+// /browser|/cool; sessione WOPI creata dal backend. Fallback → editor JS locali.
+function CollaboraFrame({ item, onClose, onFallback }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    api.post('/fs/edit-session', { path: item.path })
+      .then((r) => setUrl(r.iframeUrl))
+      .catch(() => onFallback());
+  }, [item.path]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!url) return <div className="fixed inset-0 z-50 bg-crust/95 flex items-center justify-center"><Spinner className="w-8 h-8" /></div>;
+  return (
+    <div className="fixed inset-0 z-50 bg-crust flex flex-col">
+      <div className="flex items-center justify-between px-4 py-1.5 border-b border-surface0 bg-mantle">
+        <span className="text-sm font-medium truncate">{item.name}</span>
+        <Btn size="sm" onClick={onClose}>{t.officeClose}</Btn>
+      </div>
+      <iframe title={item.name} src={url} className="flex-1 min-h-0 w-full border-0" allow="clipboard-read; clipboard-write" />
+    </div>
+  );
+}
+
+const COLLABORA_EXT = [...OFFICE_EXT, 'xlsx', 'xlsm', 'csv'];
+
 const EDIT_MAX = 2 * 1024 * 1024;
 
 function Preview({ item, onClose }) {
@@ -143,7 +167,13 @@ function Preview({ item, onClose }) {
         {kind === 'image' && <img src={dlUrl(item.path)} alt={item.name} className="max-w-full h-auto rounded-lg" />}
         {kind === 'video' && <video controls autoPlay className="max-w-full max-h-[65vh] rounded-lg" src={dlUrl(item.path)} />}
         {kind === 'audio' && <audio controls autoPlay className="w-full" src={dlUrl(item.path)} />}
-        {kind === 'pdf' && <iframe title={item.name} src={dlUrl(item.path)} className="w-full h-[65vh] rounded-lg border border-surface0" />}
+        {kind === 'pdf' && (
+          <Suspense fallback={<Spinner />}>
+            <div className="w-full h-[65vh] overflow-auto">
+              <PdfInline meta={{ path: item.path, name: item.name }} url={dlUrl(item.path)} onFail={() => {}} />
+            </div>
+          </Suspense>
+        )}
         {kind === 'unknown' && <Spinner />}
         {kind === 'text' && (text === null ? <Spinner /> : (
           <textarea
@@ -180,6 +210,7 @@ export function FilesView() {
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null);
   const [officeDoc, setOfficeDoc] = useState(null);   // editor OnlyOffice (se configurato)
+  const [collabDoc, setCollabDoc] = useState(null);   // editor Collabora embedded (:office)
   const [sheetDoc, setSheetDoc] = useState(null);     // editor fogli integrato
   const [docxDoc, setDocxDoc] = useState(null);       // viewer/editor docx integrato
   const [universal, setUniversal] = useState(null);   // viewer universale (fs locale)
@@ -285,6 +316,7 @@ export function FilesView() {
                         const full = { ...e, path: `${data.path}/${e.name}` };
                         const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
                         if (e.type === 'dir') load(full.path);
+                        else if (data.officeMode === 'collabora' && COLLABORA_EXT.includes(ext)) setCollabDoc(full);
                         else if (data.office && officeSupported(e.name)) setOfficeDoc(full);
                         else if (['xlsx', 'xls', 'ods', 'xlsm'].includes(ext)) setSheetDoc(full);
                         else if (ext === 'docx') setDocxDoc(full);
@@ -321,6 +353,20 @@ export function FilesView() {
         </Suspense>
       )}
       {officeDoc && <OfficeEditor item={officeDoc} onClose={() => { setOfficeDoc(null); load(data.path); }} />}
+      {collabDoc && (
+        <CollaboraFrame
+          item={collabDoc}
+          onClose={() => { setCollabDoc(null); load(data.path); }}
+          onFallback={() => {
+            const ext = collabDoc.name.split('.').pop().toLowerCase();
+            const d = collabDoc;
+            setCollabDoc(null);
+            if (['xlsx', 'xls', 'ods', 'xlsm', 'csv'].includes(ext)) setSheetDoc(d);
+            else if (ext === 'docx') setDocxDoc(d);
+            else setPreview(d);
+          }}
+        />
+      )}
       {sheetDoc && (
         <Suspense fallback={<div className="fixed inset-0 z-50 bg-crust/95 flex items-center justify-center"><Spinner className="w-8 h-8" /></div>}>
           <SpreadsheetEditor item={sheetDoc} onClose={() => { setSheetDoc(null); load(data.path); }} />

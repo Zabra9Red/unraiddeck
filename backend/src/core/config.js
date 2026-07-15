@@ -50,6 +50,7 @@ export const config = {
   fmEditEnabled: bool(env.FM_EDIT_ENABLED, true),
   fmKeepVersions: Math.max(0, parseInt(env.FM_KEEP_VERSIONS || '3', 10) || 0),
   fmOrigBackup: bool(env.FM_ORIG_BACKUP, true),
+  officeEditor: (env.OFFICE_EDITOR || 'auto').toLowerCase(), // auto | off (auto: attivo se coolwsd presente)
   notifyWebhookType: (env.NOTIFY_WEBHOOK_TYPE || '').toLowerCase() || null, // 'ntfy' | 'json' | null = auto dal hostname
 
   // Intervalli polling fallback SSH (spec §5), override via env
@@ -60,7 +61,7 @@ export const config = {
   pollUps: parseDuration(env.POLL_UPS, 10000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.15.0',
+  version: env.UNRAIDDECK_VERSION || '1.16.0',
 };
 
 export default config;

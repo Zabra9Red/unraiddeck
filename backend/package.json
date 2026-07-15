@@ -1,6 +1,6 @@
 {
   "name": "unraiddeck-backend",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "UnraidDeck — dashboard all-in-one per Unraid + Docker (backend)",
   "type": "module",
   "main": "src/server.js",
@@ -21,6 +21,7 @@
     "express-rate-limit": "^7.5.1",
     "file-type": "^22.0.1",
     "helmet": "^8.1.0",
+    "http-proxy-middleware": "^3.0.7",
     "p-limit": "^6.2.0",
     "socket.io": "^4.8.1",
     "ssh2": "^1.16.0",

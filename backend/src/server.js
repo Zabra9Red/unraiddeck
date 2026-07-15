@@ -22,11 +22,14 @@ import { closeAllExecSessions } from './docker/exec.js';
 import { closeAllHostTermSessions } from './unraid/host-term.js';
 import { recoverJournal, scheduleUpdateChecks, scheduleAutoUpdates, stopUpdateChecks, bindUpdatesIo } from './docker/updates.js';
 import { initUnraid, stopUnraid } from './unraid/poller.js';
+import { coolwsdAvailable, startCoolwsd, stopCoolwsd } from './office/coolwsd.js';
 import { buildRouter } from './api/routes.js';
 import { initSockets } from './api/sockets.js';
 import { log } from './core/util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const serverUpgradeHooks = [];
 
 async function main() {
   log.info(`UnraidDeck v${config.version} — avvio…`);
@@ -44,6 +47,27 @@ async function main() {
   if (config.trustProxy) {
     // "true"/"1" → 1 hop; altrimenti valore passato a Express (loopback, IP, ...)
     app.set('trust proxy', ['true', '1'].includes(config.trustProxy.toLowerCase()) ? 1 : config.trustProxy);
+  }
+
+  // Collabora embedded (immagine :office): proxy same-origin verso coolwsd
+  // PRIMA di helmet — le risposte proxate non devono ereditare la CSP dell'app
+  // (il bundle coolwsd usa inline script propri). Route protette dall'auth.
+  if (coolwsdAvailable()) {
+    const { createProxyMiddleware } = await import('http-proxy-middleware');
+    const coolProxy = createProxyMiddleware({
+      target: 'http://127.0.0.1:9980',
+      ws: true,
+      changeOrigin: false,
+      logger: { info: () => {}, warn: (m) => log.warn('[coolproxy]', m), error: (m) => log.warn('[coolproxy]', m) },
+    });
+    app.use(['/cool', '/browser', '/hosting'], auth.requireAuth, coolProxy);
+    // Upgrade WebSocket: autentica il cookie prima dell'inoltro
+    serverUpgradeHooks.push((req, socket, head) => {
+      if (!req.url.startsWith('/cool/')) return false;
+      if (!auth.socketAuth({ headers: req.headers })) { socket.destroy(); return true; }
+      coolProxy.upgrade(req, socket, head);
+      return true;
+    });
   }
 
   // CSP restrittiva self-only, compatibile con la build Vite.
@@ -89,7 +113,11 @@ async function main() {
   });
 
   const server = http.createServer(app);
-  const io = new SocketIo(server, { path: '/socket.io' });
+  // Gli upgrade non-socket.io (WebSocket Collabora) passano dagli hook
+  server.on('upgrade', (req, socket, head) => {
+    for (const h of serverUpgradeHooks) if (h(req, socket, head)) return;
+  });
+  const io = new SocketIo(server, { path: '/socket.io', destroyUpgrade: false });
   bindNotifyIo(io);
   bindUpdatesIo(io);
   initSockets(io);
@@ -105,6 +133,7 @@ async function main() {
   // Unraid: introspection GraphQL → capability map, oppure fallback SSH.
   // Non bloccante: il server parte anche se il GraphQL è lento/irraggiungibile.
   initUnraid(io).catch((e) => log.warn('[unraid] init fallita:', e.message));
+  startCoolwsd();
 
   // Retention periodiche (audit 90gg/20k, notifiche 90gg, sessioni scadute)
   const pruneTimer = setInterval(() => {
@@ -132,6 +161,7 @@ async function main() {
       closeAllExecSessions();
       closeAllHostTermSessions();
       stopUnraid();
+      stopCoolwsd();
       io.close();
       await new Promise((r) => server.close(r));
       closeDb(); // checkpoint WAL + close

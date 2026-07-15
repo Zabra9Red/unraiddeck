@@ -2,6 +2,15 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.16.0] — 2026-07-15
+
+### Aggiunto
+- **Collabora CODE embedded** (nuova immagine `ghcr.io/zabra9red/unraiddeck:office`): editing Word/Excel/PowerPoint **fedele, stile Nextcloud, tutto dentro il container** — coolwsd supervisionato dal backend (restart automatico, fallback capabilities per container unprivilegiati), proxy same-origin (`/browser`, `/cool`, `/hosting`) con WebSocket autenticato, **WOPI host interno** (token firmati, lock SQLite TTL 30 min, PutFile atomico + versioning + audit). L'immagine base resta invariata; con `:office` i documenti si aprono nell'editor Collabora a schermo pieno.
+- Gli editor JS locali rispettano i lock office: salvare da editor testo su un file aperto in Collabora → **423 Locked**.
+
+### Corretto
+- **PDF**: viewer pdf.js ovunque (anche senza mount locale/via SFTP) al posto dell'iframe del browser — i PDF si aprono sempre, su qualunque browser.
+
 ## [1.15.0] — 2026-07-15
 
 ### Aggiunto (Viewer & Editor universale — fase 1)

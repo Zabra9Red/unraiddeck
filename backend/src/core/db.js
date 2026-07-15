@@ -104,6 +104,11 @@ CREATE TABLE IF NOT EXISTS update_journal (
   started_at INTEGER NOT NULL,
   finished_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS wopi_locks (
+  path TEXT PRIMARY KEY,
+  lock_id TEXT NOT NULL,
+  exp INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ups_energy (
   hour INTEGER PRIMARY KEY,
   wh REAL NOT NULL DEFAULT 0,

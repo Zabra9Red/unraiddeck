@@ -21,6 +21,8 @@ import { energyOverview, energyBreakdown, getEnergyConfig, setEnergyConfig } fro
 import * as files from '../unraid/files.js';
 import * as office from '../unraid/office.js';
 import * as lfs from '../files/local-fs.js';
+import * as wopi from '../office/wopi.js';
+import { collaboraReady, editUrlFor } from '../office/coolwsd.js';
 import fsp from 'node:fs/promises';
 
 export function buildRouter() {
@@ -133,6 +135,38 @@ export function buildRouter() {
     if (!out.ok) return res.status(400).json({ error: out.reason });
     audit(req.user.username, 'auth.password-change', null, 'ok', req.ip);
     res.json(out);
+  });
+
+  // ---- WOPI host per Collabora embedded (spec §6.4) ----
+  // ESENTI da auth di sessione: token firmato = auth; SOLO loopback (coolwsd
+  // gira nel container). remoteAddress, mai X-Forwarded-For (spoofabile).
+  const loopbackOnly = (req, res, next) => {
+    const a = req.socket.remoteAddress;
+    if (a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1') return next();
+    res.status(403).json({ error: 'WOPI: solo loopback' });
+  };
+  const wopiTok = (req, res, next) => {
+    const tok = wopi.verifyToken(req.query.access_token || req.params.id);
+    if (!tok) return res.status(401).json({ error: 'token WOPI non valido o scaduto' });
+    req.wopi = tok;
+    next();
+  };
+  r.get('/wopi/files/:id', loopbackOnly, wopiTok, async (req, res, next) => {
+    try { await wopi.checkFileInfo(req.wopi, res); } catch (e) { next(e); }
+  });
+  r.get('/wopi/files/:id/contents', loopbackOnly, wopiTok, async (req, res, next) => {
+    try { await wopi.getFile(req.wopi, req, res); } catch (e) { next(e); }
+  });
+  r.post('/wopi/files/:id/contents', loopbackOnly, wopiTok, async (req, res, next) => {
+    try { await wopi.putFile(req.wopi, req, res); } catch (e) { next(e); }
+  });
+  r.post('/wopi/files/:id', loopbackOnly, wopiTok, async (req, res, next) => {
+    try {
+      const p = await lfs.resolveSafe(req.wopi.path);
+      const out = wopi.handleLockOp(p, req.headers['x-wopi-override'], req.headers['x-wopi-lock'], req.headers['x-wopi-oldlock']);
+      if (out.lock !== undefined) res.setHeader('x-wopi-lock', out.lock);
+      res.status(out.status).end();
+    } catch (e) { next(e); }
   });
 
   // ---- OnlyOffice: accesso documento + callback dal Document Server ----
@@ -340,12 +374,13 @@ export function buildRouter() {
 
   r.get('/unraid/files', async (req, res, next) => {
     try {
+      const officeMode = office.officeConfigured() ? 'onlyoffice' : (collaboraReady() && useLocal() ? 'collabora' : null);
       if (useLocal()) {
         const p = await lfs.resolveSafe(req.query.path);
-        return res.json({ path: p, entries: await lfs.listDir(p), office: office.officeConfigured(), localFs: true });
+        return res.json({ path: p, entries: await lfs.listDir(p), office: office.officeConfigured(), officeMode, localFs: true });
       }
       const p = files.safePath(req.query.path);
-      res.json({ path: p, entries: await files.listDir(p), office: office.officeConfigured(), localFs: false });
+      res.json({ path: p, entries: await files.listDir(p), office: office.officeConfigured(), officeMode, localFs: false });
     } catch (e) { next(e); }
   });
   r.get('/unraid/files/download', async (req, res, next) => {
@@ -435,10 +470,31 @@ export function buildRouter() {
       await lfs.streamRaw(await lfs.resolveSafe(req.query.path), req, res);
     } catch (e) { next(e); }
   });
+  // Sessione editor Collabora: { iframeUrl } (spec §8 edit-session)
+  r.post('/fs/edit-session', actionLimiter, async (req, res, next) => {
+    try {
+      if (!collaboraReady()) return res.status(400).json({ error: 'Editor office non attivo (serve l\'immagine :office)' });
+      if (!useLocal()) return res.status(400).json({ error: 'Serve il mount /mnt → /unraid per l\'editor office' });
+      const p = await lfs.resolveSafe(req.body?.path);
+      const ext = p.split('.').pop().toLowerCase();
+      const urlsrc = editUrlFor(ext);
+      if (!urlsrc) return res.status(400).json({ error: `Formato .${ext} non supportato dall'editor office` });
+      const meta = await lfs.inspect(p);
+      const token = wopi.makeToken(p, req.user.username, meta.canWrite);
+      const wopiSrc = `http://127.0.0.1:${config.port}/api/wopi/files/${encodeURIComponent(token)}`;
+      const sep = urlsrc.includes('?') ? '' : '?';
+      const iframeUrl = `${urlsrc}${sep}WOPISrc=${encodeURIComponent(wopiSrc)}&access_token=${encodeURIComponent(token)}&lang=it`;
+      audit(req.user.username, 'files.office-open', p, 'ok', req.ip, 'collabora');
+      res.json({ iframeUrl });
+    } catch (e) { next(e); }
+  });
+
   r.put('/fs/save', actionLimiter, async (req, res, next) => {
     try {
       if (!useLocal()) return res.status(400).json({ error: 'File system locale non montato' });
       const p = await lfs.resolveSafe(req.query.path, { mustExist: false });
+      // Un editor JS non scavalca mai una sessione office aperta (spec §6.5)
+      if (wopi.currentLock(p)) return res.status(423).json({ error: 'File aperto in una sessione office: chiudi l\'editor prima' });
       const out = await lfs.saveAtomic(p, req, { baseMtime: req.headers['x-base-mtime'] || null, user: req.user.username });
       audit(req.user.username, 'files.save', p, 'ok', req.ip);
       res.json(out);

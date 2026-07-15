@@ -5,7 +5,8 @@ import { rawUrl } from './registry.js';
 
 const BATCH = 20;
 
-export default function PdfViewer({ meta, onFail }) {
+// `url` opzionale: usato dal Preview legacy (SFTP) al posto di /fs/raw
+export default function PdfViewer({ meta, url, onFail }) {
   const holderRef = useRef(null);
   const docRef = useRef(null);
   const [pages, setPages] = useState(0);
@@ -37,7 +38,7 @@ export default function PdfViewer({ meta, onFail }) {
         const pdfjs = await import('pdfjs-dist');
         pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
         const doc = await pdfjs.getDocument({
-          url: rawUrl(meta.path),
+          url: url || rawUrl(meta.path),
           cMapUrl: undefined, // asset locali di default nel bundle
         }).promise;
         if (cancelled) return;
