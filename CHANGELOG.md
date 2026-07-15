@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.17.2] — 2026-07-15
+
+### Corretto
+- **`/dav` aperto nel browser** rispondeva 405: ora le cartelle mostrano un listing HTML navigabile (i file si scaricano al click); i client WebDAV continuano a usare PROPFIND come prima.
+
 ## [1.17.1] — 2026-07-15
 
 ### Corretto

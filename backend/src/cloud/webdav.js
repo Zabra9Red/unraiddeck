@@ -93,7 +93,24 @@ export function webdavMiddleware() {
         case 'GET':
         case 'HEAD': {
           const st = await fsp.stat(p);
-          if (st.isDirectory()) return res.status(405).end();
+          if (st.isDirectory()) {
+            // Browser: listing HTML navigabile (i client WebDAV usano PROPFIND)
+            if (req.method === 'HEAD') return res.status(200).end();
+            const entries = (await fsp.readdir(p, { withFileTypes: true }))
+              .filter((e) => !e.name.startsWith('.'))
+              .sort((a, b) => (a.isDirectory() ? 0 : 1) - (b.isDirectory() ? 0 : 1) || a.name.localeCompare(b.name));
+            const here = fsToDav(p).replace(/\/$/, '');
+            const rows = entries.map((e) =>
+              `<li>${e.isDirectory() ? '📁' : '📄'} <a href="${xmlEsc(here)}/${encodeURIComponent(e.name)}${e.isDirectory() ? '/' : ''}">${xmlEsc(e.name)}</a></li>`).join('');
+            const up = here !== '/dav' ? `<li>⬆️ <a href="${xmlEsc(path.posix.dirname(here))}/">..</a></li>` : '';
+            return res.type('html').send(`<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>WebDAV — UnraidDeck</title>
+<style>body{font-family:system-ui;background:#1e1e2e;color:#cdd6f4;max-width:720px;margin:2rem auto;padding:0 1rem}
+a{color:#89b4fa;text-decoration:none}a:hover{text-decoration:underline}li{padding:.25rem 0;list-style:none}ul{padding:0}
+.muted{color:#6c7086;font-size:.85rem}</style></head><body>
+<h2>📁 ${xmlEsc(decodeURIComponent(here.replace(/^\/dav/, '') || '/'))}</h2><ul>${up}${rows || '<li class="muted">vuota</li>'}</ul>
+<p class="muted">Endpoint WebDAV: monta questo URL con un client (Finder, Esplora risorse, Documents, rclone…)</p></body></html>`);
+          }
           return streamRaw(p, req, res);
         }
 
