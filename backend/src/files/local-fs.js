@@ -23,8 +23,14 @@ export function fmAvailable() {
 const inRoots = (p) => fmRoots().some((r) => p === r || p.startsWith(r + '/'));
 
 // Anti path-traversal: resolve + prefisso root; symlink risolti e ri-validati.
+// Alias: i percorsi /mnt/... (come li pensa l'utente Unraid) vengono mappati
+// sul mount interno (/unraid/...) quando /mnt non è tra i root.
 export async function resolveSafe(p, { mustExist = true } = {}) {
-  const n = path.resolve(String(p || fmRoots()[0]));
+  let n = path.resolve(String(p || fmRoots()[0]));
+  if (!inRoots(n) && (n === '/mnt' || n.startsWith('/mnt/'))) {
+    const mapped = path.posix.join(fmRoots()[0], n.slice('/mnt'.length) || '/');
+    if (inRoots(mapped)) n = mapped;
+  }
   if (!inRoots(n)) throw err400('Percorso fuori dai root consentiti');
   try {
     const real = await fsp.realpath(n);

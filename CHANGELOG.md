@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.17.1] — 2026-07-15
+
+### Corretto
+- **"Percorso fuori dai root consentiti"** aprendo la tab File col mount locale: i percorsi `/mnt/...` ora vengono mappati in trasparenza sul mount interno `/unraid/...`, e la tab parte dal root giusto in entrambe le modalità (locale e SFTP).
+
 ## [1.17.0] — 2026-07-15
 
 ### Aggiunto — UnraidDeck Cloud (le funzioni di Nextcloud/Seafile/oCIS/Immich/Filebrowser, native)

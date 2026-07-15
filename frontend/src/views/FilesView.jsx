@@ -305,7 +305,7 @@ export function FilesView() {
       .then(setData)
       .catch((e) => setError(e.message));
   };
-  useEffect(() => { load('/mnt/user'); }, []);
+  useEffect(() => { load(''); }, []); // path vuoto: il backend sceglie il root giusto (locale o SFTP)
 
   if (error && !data) {
     return <Card title={t.tabFiles}><div className="text-sm text-peach bg-peach/10 border border-peach/30 rounded-lg px-3 py-2">{error}</div></Card>;
