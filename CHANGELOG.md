@@ -2,6 +2,13 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.17.0] — 2026-07-15
+
+### Aggiunto — UnraidDeck Cloud (le funzioni di Nextcloud/Seafile/oCIS/Immich/Filebrowser, native)
+- **WebDAV nativo su `/dav`**: monta le share da Windows/macOS/Linux/iOS/Android/rclone con qualunque client WebDAV (credenziali dell'app, Basic auth con rate-limit). PROPFIND/GET/PUT/MKCOL/DELETE/MOVE/COPY/LOCK; scritture atomiche e audit. Richiede il mount `/mnt → /unraid`.
+- **Tab "Foto"**: galleria timeline (raggruppata per mese) di foto e video dalle share, thumbnail generate server-side (vips/ffmpeg, HEIC incluso) con cache su /config, lightbox col viewer universale.
+- **Link di condivisione pubblici** (`/s/<token>`): condividi file o cartelle con chiunque — scadenza opzionale, password opzionale, contatore download, revoca dalla UI; le cartelle mostrano un listing navigabile senza login. Pulsante 🔗 su ogni riga del file manager.
+
 ## [1.16.0] — 2026-07-15
 
 ### Aggiunto
