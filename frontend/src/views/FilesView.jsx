@@ -298,6 +298,7 @@ export function FilesView() {
   const [sharesOpen, setSharesOpen] = useState(false);
   const [view, setView] = useState(() => localStorage.getItem('unraiddeck.filesView') || 'grid');
   const [dragging, setDragging] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const pickView = (v) => { setView(v); try { localStorage.setItem('unraiddeck.filesView', v); } catch { /* pieno */ } };
   const [busy, setBusy] = useState(false);
   const uploadRef = useRef(null);
@@ -377,6 +378,25 @@ export function FilesView() {
   };
   const thumbable = (e) => data.localFs && e.type === 'file' && ['image', 'video'].includes(kindFor(e.name));
 
+  // "Nuovo": crea un file vuoto valido (docx/xlsx via librerie bundlate) e lo apre
+  const doNew = async (ext, label) => {
+    setNewOpen(false);
+    if (ext === 'dir') return doMkdir();
+    const base = prompt(t.filesNewNamePrompt(label), t.filesNewDefault);
+    if (!base) return;
+    const name = base.endsWith(`.${ext}`) ? base : `${base}.${ext}`;
+    try {
+      const { makeBlankFile } = await import('../components/OfficeLocal.jsx');
+      const blob = await makeBlankFile(ext);
+      const res = await fetch(`/api/unraid/files/upload?path=${encodeURIComponent(`${data.path}/${name}`)}`, {
+        method: 'PUT', body: blob, credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || `HTTP ${res.status}`);
+      load(data.path);
+      openEntry({ name, type: 'file' });
+    } catch (e) { toast.error(t.tabFiles, e.message); }
+  };
+
   return (
     <div className="space-y-3">
       <Card
@@ -392,7 +412,19 @@ export function FilesView() {
               ))}
             </div>
             {data.localFs && <Btn size="sm" variant="ghost" onClick={() => setSharesOpen(true)}>{t.shareList}</Btn>}
-            <Btn size="sm" onClick={doMkdir}>{t.filesNewFolder}</Btn>
+            <div className="relative">
+              <Btn size="sm" variant="primary" onClick={() => setNewOpen(!newOpen)}>{t.filesNew} ▾</Btn>
+              {newOpen && (
+                <div className="absolute right-0 top-full mt-1 z-20 bg-mantle border border-surface1 rounded-lg shadow-xl py-1 min-w-44">
+                  {[['dir', `📁 ${t.filesNewFolder}`], ['docx', `📝 ${t.filesNewDoc}`], ['xlsx', `📊 ${t.filesNewSheet}`], ['txt', `📄 ${t.filesNewText}`], ['md', `✍️ Markdown`]].map(([ext, label]) => (
+                    <button key={ext} onClick={() => doNew(ext, label)}
+                      className="block w-full text-left px-3 py-1.5 text-sm hover:bg-surface0 cursor-pointer">
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Btn size="sm" onClick={() => uploadRef.current?.click()} disabled={busy}>{busy ? <Spinner /> : t.filesUpload}</Btn>
             <input ref={uploadRef} type="file" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) doUploadMany(e.target.files); e.target.value = ''; }} />
           </div>

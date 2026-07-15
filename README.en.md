@@ -97,6 +97,8 @@ Optional mount of the `/var/run/libvirt` **directory** (already wired in the tem
 | `POLL_UPS` | `10s` | UPS/power polling interval |
 | `ONLYOFFICE_URL` | — | OnlyOffice Document Server URL to open/edit Office documents (optional) |
 | `ONLYOFFICE_JWT_SECRET` | — | Document Server JWT secret (if enabled) |
+| `ONLYOFFICE_SELF_URL` | auto | base URL the DS uses to reach UnraidDeck |
+| `HTTPS` | `false` | native TLS on the WebUI port (self-signed cert auto-generated in `/config/certs`, replaceable) |
 | `TZ` | `Europe/Rome` | |
 
 ---

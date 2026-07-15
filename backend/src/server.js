@@ -1,5 +1,6 @@
 // UnraidDeck — entrypoint server. Un solo container, zero dipendenze esterne.
 import http from 'node:http';
+import https from 'node:https';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import { Server as SocketIo } from 'socket.io';
 
 import { config } from './core/config.js';
+import { ensureCerts } from './core/tls.js';
 import { initDb, closeDb, scheduleBackups, db } from './core/db.js';
 import { initCrypto } from './core/crypto.js';
 import * as auth from './core/auth.js';
@@ -120,7 +122,21 @@ async function main() {
     res.status(status).json({ error: err.message || 'Errore interno' });
   });
 
-  const server = http.createServer(app);
+  // HTTPS nativo: TLS sulla porta principale + listener HTTP interno su
+  // loopback (porta+1) per coolwsd/WOPI e healthcheck (niente TLS self-signed
+  // da far digerire ai processi interni).
+  let server;
+  let internalServer = null;
+  if (config.httpsEnabled) {
+    server = https.createServer(await ensureCerts(), app);
+    internalServer = http.createServer(app);
+    internalServer.listen(config.port + 1, '127.0.0.1', () => {
+      log.info(`[server] listener interno HTTP su 127.0.0.1:${config.port + 1} (WOPI/health)`);
+    });
+    log.info('[server] HTTPS attivo (cert in /config/certs — self-signed se non sostituito)');
+  } else {
+    server = http.createServer(app);
+  }
   // Gli upgrade non-socket.io (WebSocket Collabora) passano dagli hook
   server.on('upgrade', (req, socket, head) => {
     for (const h of serverUpgradeHooks) if (h(req, socket, head)) return;
@@ -171,6 +187,7 @@ async function main() {
       stopUnraid();
       stopCoolwsd();
       io.close();
+      internalServer?.close();
       await new Promise((r) => server.close(r));
       closeDb(); // checkpoint WAL + close
       log.info('[server] arrestato');

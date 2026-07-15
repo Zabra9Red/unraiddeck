@@ -35,7 +35,7 @@ VOLUME /config
 
 # Niente curl: wget è nella busybox di Alpine
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO /dev/null http://127.0.0.1:8787/api/health || exit 1
+  CMD wget -qO /dev/null http://127.0.0.1:8787/api/health || wget -qO /dev/null http://127.0.0.1:8788/api/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "backend/src/server.js"]

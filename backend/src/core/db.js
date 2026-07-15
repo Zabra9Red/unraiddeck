@@ -104,6 +104,13 @@ CREATE TABLE IF NOT EXISTS update_journal (
   started_at INTEGER NOT NULL,
   finished_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS office_sessions (
+  token TEXT PRIMARY KEY,
+  path TEXT NOT NULL,
+  name TEXT NOT NULL,
+  user TEXT NOT NULL,
+  exp INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS cloud_shares (
   token TEXT PRIMARY KEY,
   path TEXT NOT NULL,

@@ -44,6 +44,7 @@ export const config = {
   notifyWebhookUrl: env.NOTIFY_WEBHOOK_URL || null,
   onlyofficeUrl: env.ONLYOFFICE_URL ? env.ONLYOFFICE_URL.replace(/\/+$/, '') : null,
   onlyofficeJwtSecret: env.ONLYOFFICE_JWT_SECRET || null,
+  onlyofficeSelfUrl: env.ONLYOFFICE_SELF_URL ? env.ONLYOFFICE_SELF_URL.replace(/\/+$/, '') : null,
 
   // File manager locale (bind mount /mnt → /unraid) — spec Viewer&Editor v1.2
   fmRoots: env.FM_ROOTS || '/unraid',
@@ -51,6 +52,12 @@ export const config = {
   fmKeepVersions: Math.max(0, parseInt(env.FM_KEEP_VERSIONS || '3', 10) || 0),
   fmOrigBackup: bool(env.FM_ORIG_BACKUP, true),
   officeEditor: (env.OFFICE_EDITOR || 'auto').toLowerCase(), // auto | off (auto: attivo se coolwsd presente)
+
+  // HTTPS nativo: TLS sulla porta principale; cert self-signed autogenerato
+  // in /config/certs se assente (override path con HTTPS_CERT/HTTPS_KEY)
+  httpsEnabled: bool(env.HTTPS, false),
+  httpsCert: env.HTTPS_CERT || null,
+  httpsKey: env.HTTPS_KEY || null,
   notifyWebhookType: (env.NOTIFY_WEBHOOK_TYPE || '').toLowerCase() || null, // 'ntfy' | 'json' | null = auto dal hostname
 
   // Intervalli polling fallback SSH (spec §5), override via env

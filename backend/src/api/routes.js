@@ -176,14 +176,15 @@ export function buildRouter() {
   // il DS è un server esterno senza cookie. Sessioni con scadenza.
   r.get('/unraid/office/doc/:token', async (req, res, next) => {
     try {
+      if (!office.verifyInbound(req)) return res.status(403).json({ error: 'JWT non valido' });
       const sess = office.sessionFor(req.params.token);
       if (!sess) return res.status(404).json({ error: 'Sessione documento scaduta' });
-      await files.streamDownload(sess.path, res, true);
+      await office.streamDocTo(sess.path, req, res);
     } catch (e) { next(e); }
   });
   r.post('/unraid/office/callback/:token', async (req, res) => {
     try {
-      res.json(await office.handleCallback(req.params.token, req.body));
+      res.json(await office.handleCallback(req.params.token, req.body, req));
     } catch (e) {
       // Il DS ritenta sui non-zero: logga ma non fallire in loop
       res.json({ error: 1, message: e.message });
@@ -483,7 +484,7 @@ export function buildRouter() {
       if (!urlsrc) return res.status(400).json({ error: `Formato .${ext} non supportato dall'editor office` });
       const meta = await lfs.inspect(p);
       const token = wopi.makeToken(p, req.user.username, meta.canWrite);
-      const wopiSrc = `http://127.0.0.1:${config.port}/api/wopi/files/${encodeURIComponent(token)}`;
+      const wopiSrc = `http://127.0.0.1:${config.httpsEnabled ? config.port + 1 : config.port}/api/wopi/files/${encodeURIComponent(token)}`;
       const sep = urlsrc.includes('?') ? '' : '?';
       const iframeUrl = `${urlsrc}${sep}WOPISrc=${encodeURIComponent(wopiSrc)}&access_token=${encodeURIComponent(token)}&lang=it`;
       audit(req.user.username, 'files.office-open', p, 'ok', req.ip, 'collabora');

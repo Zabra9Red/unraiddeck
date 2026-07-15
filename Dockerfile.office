@@ -42,7 +42,7 @@ COPY --from=build /app/frontend/dist ./frontend/dist
 # Root necessario per /var/run/docker.sock (come l'immagine base).
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=40s \
-  CMD curl -fsS http://127.0.0.1:8787/api/health || exit 1
+  CMD curl -fsS http://127.0.0.1:8787/api/health || curl -fsS http://127.0.0.1:8788/api/health || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "backend/src/server.js"]

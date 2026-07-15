@@ -171,6 +171,22 @@ function buildDocx(zipSync, text) {
   });
 }
 
+// File vuoti per il menu "Nuovo" (docx OOXML minimale, xlsx via SheetJS)
+export async function makeBlankFile(ext) {
+  if (ext === 'docx') {
+    const { zipSync } = await import('fflate');
+    return new Blob([buildDocx(zipSync, '')]);
+  }
+  if (ext === 'xlsx') {
+    const mod = await import('xlsx');
+    const X = mod.default || mod;
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([['']]), 'Foglio1');
+    return new Blob([X.write(wb, { type: 'array', bookType: 'xlsx' })]);
+  }
+  return new Blob(['']);
+}
+
 export function DocxPanel({ item, onClose, onSaved }) {
   const toast = useToast();
   const holderRef = useRef(null);
