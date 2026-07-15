@@ -22,6 +22,8 @@ import * as files from '../unraid/files.js';
 import * as office from '../unraid/office.js';
 import * as lfs from '../files/local-fs.js';
 import * as wopi from '../office/wopi.js';
+import { scanMedia, thumbFor } from '../cloud/gallery.js';
+import * as shares from '../cloud/shares.js';
 import { collaboraReady, editUrlFor } from '../office/coolwsd.js';
 import fsp from 'node:fs/promises';
 
@@ -515,6 +517,41 @@ export function buildRouter() {
       audit(req.user.username, 'files.version-restore', `${p} @ ${req.body?.ts}`, 'ok', req.ip);
       res.json(out);
     } catch (e) { next(e); }
+  });
+
+  // ---- Cloud nativo: galleria foto + link di condivisione ----
+  r.get('/cloud/photos', async (req, res, next) => {
+    try {
+      if (!lfs.fmAvailable()) return res.status(400).json({ error: 'Serve il mount /mnt → /unraid' });
+      res.json(await scanMedia(req.query.dir || `${lfs.fmRoots()[0]}/user`));
+    } catch (e) { next(e); }
+  });
+  r.get('/cloud/thumb', async (req, res, next) => {
+    try {
+      const p = await lfs.resolveSafe(req.query.path);
+      const out = await thumbFor(p, req.query.kind === 'video' ? 'video' : 'image');
+      res.setHeader('cache-control', 'private, max-age=86400');
+      res.type('image/webp');
+      const { createReadStream } = await import('node:fs');
+      createReadStream(out).pipe(res);
+    } catch (e) { next(e); }
+  });
+  r.get('/cloud/shares', (req, res) => res.json(shares.listShares(req.user.username)));
+  r.post('/cloud/shares', actionLimiter, async (req, res, next) => {
+    try {
+      const p = await lfs.resolveSafe(req.body?.path);
+      const token = shares.createShare(p, req.user.username, {
+        expiresHours: req.body?.expiresHours ? Number(req.body.expiresHours) : null,
+        password: req.body?.password || null,
+      });
+      audit(req.user.username, 'files.share-create', p, 'ok', req.ip);
+      res.json({ token, url: `/s/${token}` });
+    } catch (e) { next(e); }
+  });
+  r.delete('/cloud/shares/:token', actionLimiter, (req, res) => {
+    const ok = shares.deleteShare(req.params.token, req.user.username);
+    if (ok) audit(req.user.username, 'files.share-delete', req.params.token, 'ok', req.ip);
+    res.json({ ok });
   });
 
   // ---- Auto-update: config on/off + intervallo ore ----

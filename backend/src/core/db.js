@@ -104,6 +104,15 @@ CREATE TABLE IF NOT EXISTS update_journal (
   started_at INTEGER NOT NULL,
   finished_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS cloud_shares (
+  token TEXT PRIMARY KEY,
+  path TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  exp INTEGER,
+  password_hash TEXT,
+  downloads INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS wopi_locks (
   path TEXT PRIMARY KEY,
   lock_id TEXT NOT NULL,

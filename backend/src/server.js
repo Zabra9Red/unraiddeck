@@ -23,6 +23,8 @@ import { closeAllHostTermSessions } from './unraid/host-term.js';
 import { recoverJournal, scheduleUpdateChecks, scheduleAutoUpdates, stopUpdateChecks, bindUpdatesIo } from './docker/updates.js';
 import { initUnraid, stopUnraid } from './unraid/poller.js';
 import { coolwsdAvailable, startCoolwsd, stopCoolwsd } from './office/coolwsd.js';
+import { webdavMiddleware } from './cloud/webdav.js';
+import { serveShare } from './cloud/shares.js';
 import { buildRouter } from './api/routes.js';
 import { initSockets } from './api/sockets.js';
 import { log } from './core/util.js';
@@ -91,6 +93,12 @@ async function main() {
     },
     crossOriginEmbedderPolicy: false,
   }));
+  // WebDAV nativo (/dav): Basic auth propria, streaming raw — PRIMA di express.json
+  app.use('/dav', webdavMiddleware());
+  // Link di condivisione pubblici (/s/<token>): niente sessione, token = auth
+  app.get('/s/:token', (req, res, next) => serveShare(req, res).catch(next));
+  app.post('/s/:token', express.urlencoded({ extended: false }), (req, res, next) => serveShare(req, res).catch(next));
+
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
   app.use('/api', auth.originCheck, buildRouter());

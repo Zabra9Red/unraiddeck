@@ -8,13 +8,14 @@ import { DockerView } from './views/DockerView.jsx';
 import { UnraidView } from './views/UnraidView.jsx';
 import { EnergyView } from './views/EnergyView.jsx';
 import { FilesView } from './views/FilesView.jsx';
+import { GalleryView } from './views/GalleryView.jsx';
 import { SettingsView } from './views/SettingsView.jsx';
 import { AuditView } from './views/AuditView.jsx';
 import { NotificationsBell } from './components/NotificationsBell.jsx';
 import { Spinner } from './components/ui.jsx';
 import { t } from './i18n.js';
 
-const TAB_IDS = ['docker', 'unraid', 'energy', 'files', 'audit', 'settings'];
+const TAB_IDS = ['docker', 'unraid', 'energy', 'files', 'photos', 'audit', 'settings'];
 
 // Tab iniziale: hash URL (#energy) > localStorage > default. Così il refresh
 // (e il ripristino della PWA) restano sulla tab aperta.
@@ -85,6 +86,7 @@ export default function App() {
     ['unraid', t.tabUnraid],
     ['energy', t.tabEnergy],
     ['files', t.tabFiles],
+    ['photos', t.tabPhotos],
     ['audit', t.tabAudit],
     ['settings', t.tabSettings],
   ];
@@ -139,6 +141,7 @@ export default function App() {
         {tab === 'unraid' && <UnraidView />}
         {tab === 'energy' && <EnergyView />}
         {tab === 'files' && <FilesView />}
+        {tab === 'photos' && <GalleryView />}
         {tab === 'audit' && <AuditView />}
         {tab === 'settings' && <SettingsView me={me} onLogout={logout} />}
       </main>

@@ -103,6 +103,86 @@ function CollaboraFrame({ item, onClose, onFallback }) {
 
 const COLLABORA_EXT = [...OFFICE_EXT, 'xlsx', 'xlsm', 'csv'];
 
+// Link di condivisione pubblici (scadenza + password opzionali)
+function ShareModal({ item, onClose }) {
+  const toast = useToast();
+  const [expiry, setExpiry] = useState('168');
+  const [password, setPassword] = useState('');
+  const [url, setUrl] = useState(null);
+
+  const create = async () => {
+    try {
+      const r = await api.post('/cloud/shares', {
+        path: item.path,
+        expiresHours: expiry === '0' ? null : Number(expiry),
+        password: password || null,
+      });
+      const abs = `${window.location.origin}${r.url}`;
+      setUrl(abs);
+      try { await navigator.clipboard.writeText(abs); toast.ok(t.shareTitle, t.shareCopied); } catch { /* clipboard negata */ }
+    } catch (e) { toast.error(t.shareTitle, e.message); }
+  };
+
+  return (
+    <Modal title={`${t.shareTitle} — ${item.name}`} onClose={onClose}>
+      {url ? (
+        <div className="space-y-2">
+          <input readOnly value={url} onFocus={(e) => e.target.select()}
+            className="w-full bg-mantle border border-surface1 rounded-lg px-3 py-1.5 text-sm font-mono" />
+          <div className="text-xs text-overlay0">{t.shareCopied}</div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <label className="block">
+            <span className="block text-xs text-subtext0 mb-1">{t.shareExpiry}</span>
+            <select value={expiry} onChange={(e) => setExpiry(e.target.value)}
+              className="w-full bg-mantle border border-surface1 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-blue">
+              <option value="24">24 ore</option>
+              <option value="168">7 giorni</option>
+              <option value="720">30 giorni</option>
+              <option value="0">{t.shareExpiryNever}</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs text-subtext0 mb-1">{t.sharePassword}</span>
+            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-mantle border border-surface1 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue" />
+          </label>
+          <div className="flex justify-end"><Btn variant="primary" onClick={create}>{t.shareCreate}</Btn></div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function SharesList({ onClose }) {
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const load = () => api.get('/cloud/shares').then(setRows).catch((e) => toast.error(t.shareList, e.message));
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Modal title={t.shareList} onClose={onClose} wide>
+      {!rows ? <Spinner /> : rows.length === 0 ? <div className="text-sm text-overlay0">{t.shareNone}</div> : (
+        <div className="space-y-1.5 max-h-[60vh] overflow-y-auto">
+          {rows.map((s) => (
+            <div key={s.token} className="flex items-center gap-2 text-xs bg-mantle border border-surface0 rounded-lg px-3 py-2">
+              <div className="min-w-0 grow">
+                <div className="truncate">{s.path}</div>
+                <div className="text-overlay0">
+                  /s/{s.token.slice(0, 10)}… · {s.downloads} {t.shareDownloads}
+                  {s.exp ? ` · scade ${fmtTs(s.exp)}` : ''}{s.locked ? ' · 🔒' : ''}
+                </div>
+              </div>
+              <Btn size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/s/${s.token}`).catch(() => {}); toast.ok(t.shareList, t.shareCopied); }}>🔗</Btn>
+              <Btn size="sm" variant="danger" onClick={async () => { await api.del(`/cloud/shares/${s.token}`); load(); }}>{t.shareDelete}</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 const EDIT_MAX = 2 * 1024 * 1024;
 
 function Preview({ item, onClose }) {
@@ -214,6 +294,8 @@ export function FilesView() {
   const [sheetDoc, setSheetDoc] = useState(null);     // editor fogli integrato
   const [docxDoc, setDocxDoc] = useState(null);       // viewer/editor docx integrato
   const [universal, setUniversal] = useState(null);   // viewer universale (fs locale)
+  const [shareItem, setShareItem] = useState(null);
+  const [sharesOpen, setSharesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const uploadRef = useRef(null);
 
@@ -269,6 +351,7 @@ export function FilesView() {
         title={t.tabFiles}
         right={
           <div className="flex gap-1.5">
+            {data.localFs && <Btn size="sm" variant="ghost" onClick={() => setSharesOpen(true)}>{t.shareList}</Btn>}
             <Btn size="sm" onClick={doMkdir}>{t.filesNewFolder}</Btn>
             <Btn size="sm" onClick={() => uploadRef.current?.click()} disabled={busy}>{busy ? <Spinner /> : t.filesUpload}</Btn>
             <input ref={uploadRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) doUpload(f); e.target.value = ''; }} />
@@ -334,6 +417,9 @@ export function FilesView() {
                       {e.type === 'file' && (
                         <a href={dlUrl(`${data.path}/${e.name}`, true)} download className="text-xs text-subtext0 hover:text-blue px-1" title={t.filesDownload}>⬇</a>
                       )}
+                      {data.localFs && (
+                        <button onClick={() => setShareItem({ ...e, path: `${data.path}/${e.name}` })} className="text-xs text-subtext0 hover:text-blue px-1 cursor-pointer" title={t.shareTitle}>🔗</button>
+                      )}
                       <button onClick={() => doRename(e)} className="text-xs text-subtext0 hover:text-yellow px-1 cursor-pointer" title={t.filesRename}>✎</button>
                       <button onClick={() => doDelete(e)} className="text-xs text-subtext0 hover:text-red px-1 cursor-pointer" title={t.filesDelete}>✕</button>
                     </td>
@@ -346,6 +432,8 @@ export function FilesView() {
         <div className="text-[11px] text-overlay0 mt-2">{t.filesHint}</div>
       </Card>
 
+      {shareItem && <ShareModal item={shareItem} onClose={() => setShareItem(null)} />}
+      {sharesOpen && <SharesList onClose={() => setSharesOpen(false)} />}
       {preview && <Preview item={preview} onClose={() => setPreview(null)} />}
       {universal && (
         <Suspense fallback={<div className="fixed inset-0 z-50 bg-crust/95 flex items-center justify-center"><Spinner className="w-8 h-8" /></div>}>
