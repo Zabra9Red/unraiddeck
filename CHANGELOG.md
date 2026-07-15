@@ -2,6 +2,17 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.19.0] — 2026-07-15
+
+### Aggiunto
+- **HTTPS nativo** (`HTTPS=true`): TLS sulla porta della WebUI con certificato **self-signed autogenerato** in `/config/certs` (sostituibile coi propri `cert.pem`/`key.pem`); cookie `Secure` automatici; listener HTTP interno su loopback per Collabora/healthcheck. Copre WebUI, WebDAV e link condivisi.
+- **Menu "Nuovo"** nel file manager: crea Documento (docx), Foglio di calcolo (xlsx), File di testo, Markdown o Cartella — e apre subito l'editor giusto.
+
+### Migliorato — integrazione OnlyOffice "per bene"
+- **Sessioni persistite in SQLite**: i salvataggi del Document Server arrivano anche dopo un riavvio di UnraidDeck.
+- **Storage col mount locale**: apertura e salvataggio passano dal file system locale quando montato (scritture atomiche + versioning), con fallback SFTP.
+- **JWT verificato anche in ingresso** (doc + callback); **healthcheck del DS** con errori chiari; stati di errore del DS (3/7) → notifica; `ONLYOFFICE_SELF_URL` per DS che non risolvono l'hostname del browser.
+
 ## [1.18.0] — 2026-07-15
 
 ### Aggiunto
