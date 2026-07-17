@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.20.0] — 2026-07-17
+
+### Aggiunto
+- **Template dockerman auto-aggiornato**: quando una release introduce nuove variabili o mount, all'avvio UnraidDeck li aggiunge da solo alla copia locale del template su `/boot` (via SSH, backup una tantum, scrittura atomica, valori esistenti mai toccati) e notifica: basta aprire il container → **Apply** per attivarli. Niente più voci da aggiungere a mano.
+
 ## [1.19.1] — 2026-07-17
 
 ### Corretto

@@ -26,6 +26,7 @@ WORKDIR /app
 COPY --from=build /app/backend/node_modules ./backend/node_modules
 COPY backend/ ./backend/
 COPY --from=build /app/frontend/dist ./frontend/dist
+COPY docker/ ./docker/
 
 # Root necessario per /var/run/docker.sock (documentato nel README).
 # Mai --privileged; usare sempre --security-opt no-new-privileges=true.

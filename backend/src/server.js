@@ -25,6 +25,7 @@ import { closeAllHostTermSessions } from './unraid/host-term.js';
 import { recoverJournal, scheduleUpdateChecks, scheduleAutoUpdates, stopUpdateChecks, bindUpdatesIo, syncSelfBadge } from './docker/updates.js';
 import { initUnraid, stopUnraid } from './unraid/poller.js';
 import { coolwsdAvailable, startCoolwsd, stopCoolwsd } from './office/coolwsd.js';
+import { syncUserTemplates } from './unraid/template-sync.js';
 import { webdavMiddleware } from './cloud/webdav.js';
 import { serveShare } from './cloud/shares.js';
 import { buildRouter } from './api/routes.js';
@@ -154,6 +155,7 @@ async function main() {
   scheduleUpdateChecks();
   scheduleAutoUpdates();
   setTimeout(() => syncSelfBadge(), 20000).unref(); // dopo il boot, badge self allineato
+  setTimeout(() => syncUserTemplates(), 30000).unref(); // template dockerman: aggiunge le voci nuove
 
   // Unraid: introspection GraphQL → capability map, oppure fallback SSH.
   // Non bloccante: il server parte anche se il GraphQL è lento/irraggiungibile.
