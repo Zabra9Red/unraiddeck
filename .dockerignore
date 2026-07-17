@@ -10,4 +10,5 @@ frontend/dev-dist
 data
 config
 docker
+!docker/my-UnraidDeck.xml
 UNRAIDDECK SPEC*
