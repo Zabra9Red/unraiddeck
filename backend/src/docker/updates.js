@@ -9,6 +9,7 @@ import { checkImageUpdate, cacheUpdateResult, authConfigFor, invalidateUpdateCac
 import { notify } from '../core/notify.js';
 import { audit } from '../core/audit.js';
 import { log, sleep } from '../core/util.js';
+import { syncUnraidUpdateStatus } from '../unraid/host-sync.js';
 
 let ioRef = null;
 export function bindUpdatesIo(io) { ioRef = io; }
@@ -198,7 +199,9 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
         journalClose(jid, 'done');
         emitProgress(target.Id, { phase: 'done', status: 'Già aggiornato' });
         invalidateUpdateCache(ref);
-        cacheUpdateResult(ref, { status: 'current', localDigest: (newImage.RepoDigests?.[0] || '').split('@')[1] });
+        const curDigest = (newImage.RepoDigests?.[0] || '').split('@')[1];
+        cacheUpdateResult(ref, { status: 'current', localDigest: curDigest });
+        syncUnraidUpdateStatus(ref, curDigest).catch(() => {});
         audit(user, 'container.update', name, 'ok', null, 'già aggiornato');
         return { status: 'uptodate' };
       }
@@ -270,7 +273,10 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
 
       journalClose(jid, 'done');
       invalidateUpdateCache(ref);
-      cacheUpdateResult(ref, { status: 'current', localDigest: (newImage.RepoDigests?.[0] || '').split('@')[1] });
+      const newDigest = (newImage.RepoDigests?.[0] || '').split('@')[1];
+      cacheUpdateResult(ref, { status: 'current', localDigest: newDigest });
+      // Azzera il badge "update ready" nella pagina Docker di Unraid (best-effort)
+      syncUnraidUpdateStatus(ref, newDigest).catch(() => {});
       emitProgress(target.Id, { phase: 'done', status: 'Update completato', newId });
       audit(user, 'container.update', name, 'ok', null, `nuova immagine ${newImage.Id.slice(7, 19)}`);
       const depFail = depResults.filter(d => !d.ok);
@@ -480,6 +486,18 @@ async function runAutoUpdate() {
     `Auto-update: ${ok}/${targets.length} container aggiornati`,
     failed.length ? failed.join('\n').slice(0, 500) : targets.map(c => (c.Names?.[0] || '').replace(/^\//, '')).join(', '));
   audit('auto-update', 'updates.auto', 'globale', failed.length ? 'parziale' : 'ok', null, `${ok} ok, ${failed.length} falliti`);
+}
+
+// Dopo un self-update (helper) UnraidDeck riparte con l'immagine nuova ma il
+// badge Unraid resta: al boot allinea la cache dockerman per la propria immagine.
+export async function syncSelfBadge() {
+  try {
+    if (!selfId) return;
+    const self = await docker.getContainer(selfId).inspect();
+    const img = await docker.getImage(self.Image).inspect();
+    const digest = (img.RepoDigests?.[0] || '').split('@')[1];
+    if (digest) await syncUnraidUpdateStatus(self.Config.Image, digest);
+  } catch (e) { log.warn('[host-sync] self badge:', e.message); }
 }
 
 export function scheduleAutoUpdates() {

@@ -22,7 +22,7 @@ import { stopStatsHub } from './docker/stats-hub.js';
 import { stopAllLogStreams } from './docker/logs.js';
 import { closeAllExecSessions } from './docker/exec.js';
 import { closeAllHostTermSessions } from './unraid/host-term.js';
-import { recoverJournal, scheduleUpdateChecks, scheduleAutoUpdates, stopUpdateChecks, bindUpdatesIo } from './docker/updates.js';
+import { recoverJournal, scheduleUpdateChecks, scheduleAutoUpdates, stopUpdateChecks, bindUpdatesIo, syncSelfBadge } from './docker/updates.js';
 import { initUnraid, stopUnraid } from './unraid/poller.js';
 import { coolwsdAvailable, startCoolwsd, stopCoolwsd } from './office/coolwsd.js';
 import { webdavMiddleware } from './cloud/webdav.js';
@@ -153,6 +153,7 @@ async function main() {
   startEvents(io);
   scheduleUpdateChecks();
   scheduleAutoUpdates();
+  setTimeout(() => syncSelfBadge(), 20000).unref(); // dopo il boot, badge self allineato
 
   // Unraid: introspection GraphQL → capability map, oppure fallback SSH.
   // Non bloccante: il server parte anche se il GraphQL è lento/irraggiungibile.

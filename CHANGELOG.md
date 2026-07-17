@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.19.1] — 2026-07-17
+
+### Corretto
+- **Il badge "update ready" nella pagina Docker di Unraid ora sparisce** dopo gli update fatti da UnraidDeck (manuali o automatici): la cache di dockerman (`/var/lib/docker/unraid-update-status.json`) viene allineata via SSH col digest nuovo (scrittura atomica, gestisce chiavi con/senza registry). Vale anche per il self-update, al primo avvio dopo l'aggiornamento. Richiede il fallback SSH configurato; senza, comportamento invariato (il badge si azzera col "check for updates" di Unraid).
+
 ## [1.19.0] — 2026-07-15
 
 ### Aggiunto
