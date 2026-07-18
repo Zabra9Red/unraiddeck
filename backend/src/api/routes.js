@@ -26,6 +26,7 @@ import { scanMedia, thumbFor } from '../cloud/gallery.js';
 import * as shares from '../cloud/shares.js';
 import { collaboraReady, editUrlFor } from '../office/coolwsd.js';
 import fsp from 'node:fs/promises';
+import { caPaths } from '../core/tls.js';
 
 export function buildRouter() {
   const r = Router();
@@ -203,6 +204,19 @@ export function buildRouter() {
       audit(req.user.username, 'files.office-open', p, 'ok', req.ip);
       res.json(out);
     } catch (e) { next(e); }
+  });
+
+  // ---- CA locale HTTPS: download per installarla su iOS/Android ----
+  r.get('/ca', async (_req, res) => {
+    const { caCert } = caPaths();
+    try {
+      const pem = await fsp.readFile(caCert);
+      res.setHeader('content-type', 'application/x-x509-ca-cert');
+      res.setHeader('content-disposition', 'attachment; filename="unraiddeck-ca.crt"');
+      res.send(pem);
+    } catch {
+      res.status(404).json({ error: 'CA non ancora generata: attiva HTTPS=true e riavvia' });
+    }
   });
 
   // ---- Icone (proxy cacheato) ----

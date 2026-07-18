@@ -194,6 +194,16 @@ export function SettingsView({ me, onLogout }) {
         <div className="text-xs text-overlay0 mt-3">{t.version}: {me?.version || '—'}</div>
       </Card>
 
+      <Card title={t.httpsLocalTitle}>
+        <p className="text-sm text-subtext1 mb-2">{t.httpsLocalIntro}</p>
+        <a href="/api/ca" download><Btn size="sm" variant="primary">{t.httpsLocalDownload}</Btn></a>
+        <ul className="text-xs text-subtext0 space-y-1.5 list-disc pl-5 mt-3">
+          <li><b>iOS</b>: {t.httpsLocalIos}</li>
+          <li><b>Android</b>: {t.httpsLocalAndroid}</li>
+        </ul>
+        <div className="text-[11px] text-overlay0 mt-2">{t.httpsLocalNote}</div>
+      </Card>
+
       <Card title={t.autoUpdateTitle}>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex items-center gap-2 text-sm cursor-pointer pb-1.5">

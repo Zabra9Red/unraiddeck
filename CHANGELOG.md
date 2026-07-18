@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.23.0] — 2026-07-18
+
+### Aggiunto
+- **HTTPS locale senza avvisi, senza nulla di pubblico**: il self-signed diventa una **CA privata** ("UnraidDeck Local CA") che firma un certificato server con SAN su IP LAN, `unraiddeck.local` e localhost. In **Impostazioni → HTTPS locale** c'è il pulsante **"Scarica certificato CA"** con le istruzioni per iOS (profilo + attendibilità) e Android (certificato CA utente): installata una volta per dispositivo, il lucchetto è verde su `https://IP:8787`. Il certificato server si riemette da solo se cambia l'IP o sotto i 30 giorni. (Nota: nessuna CA pubblica può emettere certificati per `.local`/IP — è la strada giusta per la sola LAN; l'alternativa zero-installazioni resta DuckDNS.)
+
 ## [1.22.0] — 2026-07-18
 
 ### Aggiunto
