@@ -58,6 +58,9 @@ export const config = {
   httpsEnabled: bool(env.HTTPS, false),
   httpsCert: env.HTTPS_CERT || null,
   httpsKey: env.HTTPS_KEY || null,
+  // Certificato VERO via Let's Encrypt + DuckDNS (DNS-01, nessuna porta aperta)
+  duckdnsDomain: env.DUCKDNS_DOMAIN ? env.DUCKDNS_DOMAIN.replace(/\.duckdns\.org$/i, '') : null,
+  duckdnsToken: env.DUCKDNS_TOKEN || null,
   notifyWebhookType: (env.NOTIFY_WEBHOOK_TYPE || '').toLowerCase() || null, // 'ntfy' | 'json' | null = auto dal hostname
 
   // Intervalli polling fallback SSH (spec §5), override via env
@@ -68,7 +71,7 @@ export const config = {
   pollUps: parseDuration(env.POLL_UPS, 10000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.21.0',
+  version: env.UNRAIDDECK_VERSION || '1.22.0',
 };
 
 export default config;

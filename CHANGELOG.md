@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.22.0] — 2026-07-18
+
+### Aggiunto
+- **Certificato Let's Encrypt vero, senza avvisi "Non sicuro"**: con `HTTPS=true` + `DUCKDNS_DOMAIN` + `DUCKDNS_TOKEN`, UnraidDeck ottiene da solo un certificato reale per `<nome>.duckdns.org` con challenge **DNS-01** (nessuna porta da aprire, il dominio punta all'IP LAN), lo rinnova in automatico (check giornaliero, sotto i 30 giorni, applicato a caldo senza riavvio) e fa fallback sul self-signed se qualcosa va storto. Client ACME nativo (RFC 8555, JWS verificato contro RFC 7638). Le due variabili arrivano ai container esistenti col template-sync.
+
 ## [1.21.0] — 2026-07-18
 
 ### Aggiunto

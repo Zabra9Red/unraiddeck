@@ -6,9 +6,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { config } from './config.js';
+import { ensureAcmeCert } from './acme.js';
 import { log } from './util.js';
 
 export async function ensureCerts() {
+  // DuckDNS configurato → certificato Let's Encrypt vero (niente avvisi browser)
+  if (config.duckdnsDomain && config.duckdnsToken) {
+    try {
+      const { cert, key } = await ensureAcmeCert();
+      log.info(`[tls] certificato Let's Encrypt attivo — apri https://${config.duckdnsDomain}.duckdns.org:${config.port}`);
+      return { cert, key };
+    } catch (e) {
+      log.warn('[tls] Let\'s Encrypt fallito, ripiego sul self-signed:', e.message);
+    }
+  }
   const dir = path.join(config.configDir, 'certs');
   const certPath = config.httpsCert || path.join(dir, 'cert.pem');
   const keyPath = config.httpsKey || path.join(dir, 'key.pem');

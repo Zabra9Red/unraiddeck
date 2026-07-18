@@ -99,6 +99,7 @@ Mount opzionale della **directory** `/var/run/libvirt` (già predisposto nel tem
 | `ONLYOFFICE_JWT_SECRET` | — | JWT secret del Document Server (se abilitato) |
 | `ONLYOFFICE_SELF_URL` | auto | base URL con cui il DS raggiunge UnraidDeck |
 | `HTTPS` | `false` | TLS nativo sulla porta WebUI (cert self-signed autogenerato in `/config/certs`, sostituibile) |
+| `DUCKDNS_DOMAIN` + `DUCKDNS_TOKEN` | — | con `HTTPS=true`: certificato **Let's Encrypt vero** per `<nome>.duckdns.org` via DNS-01 (nessuna porta da aprire, rinnovo automatico) — niente avvisi "Non sicuro" |
 | `TZ` | `Europe/Rome` | |
 
 ---

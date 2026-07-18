@@ -11,6 +11,7 @@ import { Server as SocketIo } from 'socket.io';
 
 import { config } from './core/config.js';
 import { ensureCerts } from './core/tls.js';
+import { scheduleAcmeRenewal } from './core/acme.js';
 import { initDb, closeDb, scheduleBackups, db } from './core/db.js';
 import { initCrypto } from './core/crypto.js';
 import * as auth from './core/auth.js';
@@ -130,6 +131,7 @@ async function main() {
   let internalServer = null;
   if (config.httpsEnabled) {
     server = https.createServer(await ensureCerts(), app);
+    if (config.duckdnsDomain && config.duckdnsToken) scheduleAcmeRenewal(server);
     internalServer = http.createServer(app);
     internalServer.listen(config.port + 1, '127.0.0.1', () => {
       log.info(`[server] listener interno HTTP su 127.0.0.1:${config.port + 1} (WOPI/health)`);
