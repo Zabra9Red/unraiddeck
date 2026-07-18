@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.21.0] — 2026-07-18
+
+### Aggiunto
+- **UI ottimizzata per il telefono**: bottom bar stile app (Docker/Unraid/Energia/File + "Altro" per Foto/Audit/Impostazioni, con safe-area per i notch), header compatto col nome della tab, **lista container a card** su mobile (stato, CPU/RAM live, badge update tappabile, azioni rapide ▶/■/⟳, tap → dettagli) al posto della tabella larga. Con la PWA installata sembra un'app nativa.
+
 ## [1.20.0] — 2026-07-17
 
 ### Aggiunto

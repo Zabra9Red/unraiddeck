@@ -205,8 +205,23 @@ export function DockerView() {
         <Btn size="sm" onClick={openDf}>{t.diskSpace}</Btn>
       </div>
 
-      {/* Tabella container */}
-      <div className="overflow-x-auto bg-base border border-surface0 rounded-xl">
+      {/* Lista mobile (card, tap → drawer) */}
+      <div className="md:hidden space-y-2">
+        {filtered.map((c) => (
+          <MobileCard
+            key={c.id}
+            c={c}
+            stats={statsMap[c.id]}
+            onOpen={() => setDrawer(c)}
+            onAction={askAction}
+            onUpdate={() => setUpdateModal(c)}
+          />
+        ))}
+        {!filtered.length && <EmptyState>{t.noContainers}</EmptyState>}
+      </div>
+
+      {/* Tabella container (desktop) */}
+      <div className="hidden md:block overflow-x-auto bg-base border border-surface0 rounded-xl">
         <table className="w-full text-sm min-w-[900px]">
           <thead>
             <tr className="text-left text-xs text-overlay0 border-b border-surface0">
@@ -281,6 +296,44 @@ export function DockerView() {
           )}
         </Modal>
       )}
+    </div>
+  );
+}
+
+// Card mobile: stato, nome, stats essenziali, azioni rapide touch-friendly.
+function MobileCard({ c, stats, onOpen, onAction, onUpdate }) {
+  const [bColor, bLabel] = STATE_BADGE[c.state] || ['overlay', c.state];
+  const running = c.state === 'running';
+  const memPct = stats?.memLimit > 0 ? (stats.mem / stats.memLimit) * 100 : 0;
+  const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
+  return (
+    <div onClick={onOpen} className="bg-base border border-surface0 rounded-xl px-3 py-2.5 cursor-pointer active:bg-surface0/30">
+      <div className="flex items-center gap-2 min-w-0">
+        <Badge color={bColor}>{bLabel}</Badge>
+        <span className="font-medium text-sm truncate">{c.name}</span>
+        {c.isSelf && <Badge color="mauve">{t.selfBadge}</Badge>}
+        <div className="grow" />
+        {c.update?.status === 'update' && (
+          <button onClick={stop(onUpdate)} className="text-xs px-2 py-1 rounded-lg bg-blue text-crust font-medium cursor-pointer">
+            {t.updBadgeUpdate}
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-3 mt-1.5 text-xs text-subtext0">
+        <span>{running && stats ? `CPU ${stats.cpu.toFixed(0)}%` : c.uptime || '—'}</span>
+        {running && stats && <span>RAM {fmtBytes(stats.mem)}{memPct > 0 ? ` (${memPct.toFixed(0)}%)` : ''}</span>}
+        <div className="grow" />
+        <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {running ? (
+            <>
+              <Btn size="sm" onClick={() => onAction(c, 'restart')}>⟳</Btn>
+              <Btn size="sm" variant="warn" onClick={() => onAction(c, 'stop')}>■</Btn>
+            </>
+          ) : (
+            <Btn size="sm" variant="green" onClick={() => onAction(c, 'start')}>▶</Btn>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

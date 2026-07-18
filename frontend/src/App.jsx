@@ -26,10 +26,20 @@ function initialTab() {
   return TAB_IDS.includes(saved) ? saved : 'docker';
 }
 
+// Bottom bar mobile (stile app/PWA): 4 tab principali + "Altro"
+const MOBILE_TABS = [
+  ['docker', '🐳', 'Docker'],
+  ['unraid', '🖥️', 'Unraid'],
+  ['energy', '⚡', 'Energia'],
+  ['files', '📁', 'File'],
+];
+const MORE_TABS = ['photos', 'audit', 'settings'];
+
 export default function App() {
   const [phase, setPhase] = useState('loading'); // loading | setup | login | app
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState(initialTab);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const selectTab = (id) => {
     setTab(id);
@@ -110,8 +120,11 @@ export default function App() {
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="w-7 h-7" />
             <span className="font-bold hidden sm:inline">{t.appName}</span>
+            <span className="font-semibold sm:hidden text-sm">{(
+              [['docker', t.tabDocker], ['unraid', t.tabUnraid], ['energy', t.tabEnergy], ['files', t.tabFiles], ['photos', t.tabPhotos], ['audit', t.tabAudit], ['settings', t.tabSettings]].find(([id]) => id === tab) || []
+            )[1]}</span>
           </div>
-          <nav className="flex gap-1">
+          <nav className="hidden sm:flex gap-1">
             {tabs.map(([id, label]) => (
               <button
                 key={id}
@@ -136,7 +149,7 @@ export default function App() {
       </header>
 
       {/* Contenuto */}
-      <main className="grow max-w-[1400px] w-full mx-auto px-4 py-4">
+      <main className="grow max-w-[1400px] w-full mx-auto px-4 py-4 pb-24 sm:pb-4">
         {tab === 'docker' && <DockerView />}
         {tab === 'unraid' && <UnraidView />}
         {tab === 'energy' && <EnergyView />}
@@ -147,7 +160,7 @@ export default function App() {
       </main>
 
       {/* Footer: versione corrente (allineata alle release GitHub) */}
-      <footer className="text-center py-3 border-t border-surface0">
+      <footer className="text-center py-3 border-t border-surface0 mb-16 sm:mb-0">
         <a
           href="https://github.com/Zabra9Red/unraiddeck/releases"
           target="_blank"
@@ -157,6 +170,42 @@ export default function App() {
           {t.appName} v{me?.version}
         </a>
       </footer>
+
+      {/* Bottom bar mobile (stile app) */}
+      <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-mantle/95 backdrop-blur border-t border-surface0 pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5">
+          {MOBILE_TABS.map(([id, icon, label]) => (
+            <button
+              key={id}
+              onClick={() => { setMoreOpen(false); selectTab(id); }}
+              className={`flex flex-col items-center gap-0.5 py-2 cursor-pointer ${tab === id ? 'text-blue' : 'text-subtext0'}`}
+            >
+              <span className="text-lg leading-none">{icon}</span>
+              <span className="text-[10px]">{label}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => setMoreOpen(!moreOpen)}
+            className={`flex flex-col items-center gap-0.5 py-2 cursor-pointer ${MORE_TABS.includes(tab) || moreOpen ? 'text-blue' : 'text-subtext0'}`}
+          >
+            <span className="text-lg leading-none">⋯</span>
+            <span className="text-[10px]">Altro</span>
+          </button>
+        </div>
+        {moreOpen && (
+          <div className="absolute bottom-full inset-x-2 mb-2 bg-mantle border border-surface1 rounded-xl shadow-2xl overflow-hidden">
+            {[['photos', `🖼️ ${t.tabPhotos}`], ['audit', `📋 ${t.tabAudit}`], ['settings', `⚙️ ${t.tabSettings}`]].map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => { setMoreOpen(false); selectTab(id); }}
+                className={`block w-full text-left px-4 py-3 text-sm border-b border-surface0 last:border-0 cursor-pointer ${tab === id ? 'text-blue bg-surface0/40' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </nav>
     </div>
   );
 }
