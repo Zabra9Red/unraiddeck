@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.23.2] — 2026-07-18
+
+### Corretto
+- **"Caricamento infinito" con HTTPS attivo**: i vecchi segnalibri/PWA che puntano a `http://` restavano appesi (la porta parlava solo TLS). Ora la porta è dual-protocol: le connessioni TLS vanno all'app, quelle HTTP in chiaro ricevono un **redirect 301 a https** — link e icone vecchie si aggiustano da sole.
+
 ## [1.23.1] — 2026-07-18
 
 ### Migliorato

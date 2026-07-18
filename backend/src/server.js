@@ -1,6 +1,7 @@
 // UnraidDeck — entrypoint server. Un solo container, zero dipendenze esterne.
 import http from 'node:http';
 import https from 'node:https';
+import net from 'node:net';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -129,6 +130,7 @@ async function main() {
   // da far digerire ai processi interni).
   let server;
   let internalServer = null;
+  let muxServer = null;
   if (config.httpsEnabled) {
     server = https.createServer(await ensureCerts(), app);
     if (config.duckdnsDomain && config.duckdnsToken) scheduleAcmeRenewal(server);
@@ -136,7 +138,23 @@ async function main() {
     internalServer.listen(config.port + 1, '127.0.0.1', () => {
       log.info(`[server] listener interno HTTP su 127.0.0.1:${config.port + 1} (WOPI/health)`);
     });
-    log.info('[server] HTTPS attivo (cert in /config/certs — self-signed se non sostituito)');
+    // Porta dual-protocol: vecchi segnalibri/PWA in http:// vengono
+    // REDIRETTI a https invece di restare appesi (primo byte 0x16 = TLS).
+    const redirector = http.createServer((req, res) => {
+      const host = (req.headers.host || '').split(':')[0] || 'localhost';
+      res.writeHead(301, { location: `https://${host}:${config.port}${req.url}` });
+      res.end();
+    });
+    muxServer = net.createServer((sock) => {
+      sock.once('data', (buf) => {
+        sock.pause();
+        sock.unshift(buf);
+        (buf[0] === 0x16 ? server : redirector).emit('connection', sock);
+        process.nextTick(() => sock.resume());
+      });
+      sock.on('error', () => {});
+    });
+    log.info('[server] HTTPS attivo (cert in /config/certs; http → redirect 301)');
   } else {
     server = http.createServer(app);
   }
@@ -170,8 +188,8 @@ async function main() {
   }, 6 * 3600000);
   pruneTimer.unref();
 
-  server.listen(config.port, () => {
-    log.info(`[server] in ascolto su :${config.port}`);
+  (muxServer || server).listen(config.port, () => {
+    log.info(`[server] in ascolto su :${config.port}${muxServer ? ' (TLS + redirect http)' : ''}`);
   });
 
   // Gestione SIGTERM/SIGINT: chiusura pulita di stream, exec, SSH, checkpoint WAL
@@ -193,6 +211,7 @@ async function main() {
       stopCoolwsd();
       io.close();
       internalServer?.close();
+      muxServer?.close();
       await new Promise((r) => server.close(r));
       closeDb(); // checkpoint WAL + close
       log.info('[server] arrestato');
