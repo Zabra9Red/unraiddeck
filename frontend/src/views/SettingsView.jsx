@@ -118,9 +118,9 @@ export function SettingsView({ me, onLogout }) {
         <div className="border-t border-surface0 mt-4 pt-4">
           <div className="text-sm font-medium text-subtext1 mb-2">{t.totpTitle}</div>
           {me?.totpEnabled ? (
-            <div className="flex items-end gap-2">
-              <Input label={t.totpCode} value={totpCode} onChange={(e) => setTotpCode(e.target.value)} inputMode="numeric" className="max-w-40" />
-              <Btn variant="danger" onClick={disableTotp} disabled={!totpCode}>{t.totpDisable}</Btn>
+            <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+              <Input label={t.totpCode} value={totpCode} onChange={(e) => setTotpCode(e.target.value)} inputMode="numeric" className="sm:max-w-40" />
+              <Btn variant="danger" onClick={disableTotp} disabled={!totpCode} className="w-full sm:w-auto">{t.totpDisable}</Btn>
             </div>
           ) : (
             <Btn variant="primary" onClick={startTotp}>{t.totpEnable}</Btn>
@@ -168,22 +168,22 @@ export function SettingsView({ me, onLogout }) {
       </Card>
 
       <Card title={t.thresholds}>
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2">
           <Input
             label={t.tempThresholdLabel}
             type="number" min="20" max="80"
             value={threshold}
             onChange={(e) => setThreshold(parseInt(e.target.value || '45', 10))}
-            className="max-w-28"
+            className="sm:max-w-28"
           />
           <Input
             label={t.tempMinLabel}
             type="number" min="0" max="50" placeholder="off"
             value={tempMin}
             onChange={(e) => setTempMin(e.target.value)}
-            className="max-w-28"
+            className="sm:max-w-28"
           />
-          <Btn variant="primary" onClick={saveThreshold}>{t.save}</Btn>
+          <Btn variant="primary" onClick={saveThreshold} className="w-full sm:w-auto">{t.save}</Btn>
         </div>
         <div className="border-t border-surface0 mt-4 pt-4 flex items-center justify-between">
           <span className="text-sm text-subtext0">{t.notifications}</span>
@@ -196,7 +196,10 @@ export function SettingsView({ me, onLogout }) {
 
       <Card title={t.httpsLocalTitle}>
         <p className="text-sm text-subtext1 mb-2">{t.httpsLocalIntro}</p>
-        <a href="/api/ca" download><Btn size="sm" variant="primary">{t.httpsLocalDownload}</Btn></a>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <a href="/api/ca" className="w-full sm:w-auto"><Btn size="sm" variant="primary" className="w-full">{t.httpsLocalIosBtn}</Btn></a>
+          <a href="/api/ca?dl=1" download className="w-full sm:w-auto"><Btn size="sm" className="w-full">{t.httpsLocalAndroidBtn}</Btn></a>
+        </div>
         <ul className="text-xs text-subtext0 space-y-1.5 list-disc pl-5 mt-3">
           <li><b>iOS</b>: {t.httpsLocalIos}</li>
           <li><b>Android</b>: {t.httpsLocalAndroid}</li>
@@ -205,7 +208,7 @@ export function SettingsView({ me, onLogout }) {
       </Card>
 
       <Card title={t.autoUpdateTitle}>
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
           <label className="flex items-center gap-2 text-sm cursor-pointer pb-1.5">
             <input
               type="checkbox"
@@ -222,7 +225,7 @@ export function SettingsView({ me, onLogout }) {
             onChange={(e) => setAutoUpd({ ...autoUpd, intervalHours: parseInt(e.target.value || '8', 10) })}
             className="max-w-24"
           />
-          <Btn variant="primary" onClick={() => saveAutoUpdate(autoUpd)}>{t.save}</Btn>
+          <Btn variant="primary" onClick={() => saveAutoUpdate(autoUpd)} className="w-full sm:w-auto">{t.save}</Btn>
         </div>
         <div className="text-xs text-overlay0 mt-3">{t.autoUpdateHint}</div>
       </Card>

@@ -45,7 +45,7 @@ export function Card({ title, right, children, className = '' }) {
   return (
     <div className={`bg-base border border-surface0 rounded-xl ${className}`}>
       {(title || right) && (
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-surface0">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-surface0">
           <h3 className="text-sm font-semibold text-subtext1">{title}</h3>
           <div className="flex items-center gap-2">{right}</div>
         </div>

@@ -2,6 +2,12 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.23.3] — 2026-07-18
+
+### Corretto
+- **Installazione CA su iOS**: il certificato veniva servito come download (finiva in File) invece di avviare l'installazione del profilo. Ora: pulsante **"Installa su iOS"** (inline → parte "Profilo scaricato") e **"Scarica per Android (.crt)"** separato; istruzioni riscritte col passaggio che tutti saltano (Generali → Info → Attendibilità certificati → attivare "UnraidDeck Local CA" — senza quello Safari continua a dire "Non sicuro").
+- **Impostazioni su telefono**: righe dei form in colonna con input e pulsanti a piena larghezza (soglie temperatura, auto-update, TOTP, certificati), header delle card che va a capo.
+
 ## [1.23.2] — 2026-07-18
 
 ### Corretto

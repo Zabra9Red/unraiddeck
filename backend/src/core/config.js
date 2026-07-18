@@ -71,7 +71,7 @@ export const config = {
   pollUps: parseDuration(env.POLL_UPS, 10000),
 
   tz: env.TZ || 'Europe/Rome',
-  version: env.UNRAIDDECK_VERSION || '1.23.2',
+  version: env.UNRAIDDECK_VERSION || '1.23.3',
 };
 
 export default config;

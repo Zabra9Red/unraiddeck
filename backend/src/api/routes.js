@@ -207,12 +207,13 @@ export function buildRouter() {
   });
 
   // ---- CA locale HTTPS: download per installarla su iOS/Android ----
-  r.get('/ca', async (_req, res) => {
+  r.get('/ca', async (req, res) => {
     const { caCert } = caPaths();
     try {
       const pem = await fsp.readFile(caCert);
       res.setHeader('content-type', 'application/x-x509-ca-cert');
-      res.setHeader('content-disposition', 'attachment; filename="unraiddeck-ca.crt"');
+      // iOS avvia l'installazione profilo SOLO se inline; Android vuole il download
+      res.setHeader('content-disposition', `${req.query.dl === '1' ? 'attachment' : 'inline'}; filename="unraiddeck-ca.crt"`);
       res.send(pem);
     } catch {
       res.status(404).json({ error: 'CA non ancora generata: attiva HTTPS=true e riavvia' });
