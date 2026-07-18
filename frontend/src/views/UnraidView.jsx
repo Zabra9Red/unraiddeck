@@ -233,7 +233,36 @@ export function UnraidView() {
         <Card title={t.disks} className="md:col-span-2 xl:col-span-3">
           <SectionError name="disks" />
           {sec.disks?.length ? (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: card per disco */}
+            <div className="sm:hidden space-y-2">
+              {sec.disks.map((d) => (
+                <div key={d.name} className="bg-mantle border border-surface0 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{d.name}</span>
+                    <span className="text-[11px] text-overlay0 font-mono">{d.device || ''}</span>
+                    <div className="grow" />
+                    {d.numErrors > 0 && <Badge color="red">{d.numErrors} err</Badge>}
+                    {d.spunDown || d.temp == null
+                      ? <Badge color="overlay">{t.spunDown}</Badge>
+                      : <span className={`text-sm ${d.temp >= 45 ? 'text-red font-medium' : d.temp >= 42 ? 'text-peach' : ''}`}>{d.temp}°C</span>}
+                  </div>
+                  {d.fsSize > 0 && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Meter value={d.fsUsed || (d.fsSize - d.fsFree)} max={d.fsSize} color={(d.fsFree / d.fsSize) < 0.1 ? 'red' : 'blue'} className="grow" />
+                      <span className="text-[11px] text-subtext0 whitespace-nowrap">{fmtBytes(d.fsFree)} liberi</span>
+                    </div>
+                  )}
+                  <div className="mt-1.5 flex items-center gap-2 text-[11px] text-subtext0">
+                    <span>{d.type || '—'}</span><span>{d.fsType || ''}</span>
+                    <div className="grow" />
+                    {d.device && <Btn size="sm" variant="ghost" onClick={() => openSmart(d.device)}>{t.smart}</Btn>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop: tabella completa */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
                 <thead>
                   <tr className="text-left text-xs text-overlay0 border-b border-surface0">
@@ -276,6 +305,7 @@ export function UnraidView() {
                 </tbody>
               </table>
             </div>
+            </>
           ) : !err.disks && <Spinner />}
         </Card>
 

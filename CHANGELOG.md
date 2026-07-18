@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.23.1] — 2026-07-18
+
+### Migliorato
+- **Tab Unraid su telefono**: la tabella dischi diventa una lista a card (nome, temperatura/spin-down, errori, barra utilizzo, SMART) — niente più scroll orizzontale; la tabella completa resta su schermi grandi.
+
 ## [1.23.0] — 2026-07-18
 
 ### Aggiunto
