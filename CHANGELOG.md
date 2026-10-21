@@ -2,6 +2,14 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.23.4] — 2026-10-21
+
+### Corretto
+- **Update di un container fermo**: a fine update veniva sempre avviato (e se una sua porta era occupata da un altro container l'update falliva con rollback). Ora lo stato è preservato: un container **fermo** viene ricreato con l'immagine nuova e **resta fermo**; uno **avviato** riparte con l'immagine nuova e passa la verifica come prima. Vale per update manuale, bulk e auto-update; la finestra di update dice in anticipo cosa succederà.
+- **Dipendenti `net=container:` (pattern VPN, es. gluetun + qbittorrent)**: su Docker recenti la ricreazione dopo l'update del container "VPN" falliva sempre (`conflicting options: hostname and the network mode`, porte EXPOSE dell'immagine) e i dipendenti restavano agganciati al vecchio container rimosso. Ora vengono ricreati sul nuovo; se il target resta fermo, restano fermi anche loro.
+- **Recovery dopo un crash/riavvio a metà update**: non elimina più il nuovo container quando il vecchio è già stato rimosso (si poteva perdere il container) e non annulla un update che aveva già superato la verifica; un errore temporaneo di Docker non porta più a decisioni distruttive.
+- **Rollback più robusto**: se durante il pull il container viene avviato o fermato (es. dalla pagina Docker di Unraid) lo stato viene riletto prima di procedere; con Docker più vecchi (API < 1.44) e più reti, un errore nel collegamento a una rete non lascia più un container a metà che bloccava il ripristino del vecchio.
+
 ## [1.23.3] — 2026-07-18
 
 ### Corretto
