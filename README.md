@@ -13,7 +13,7 @@ UnraidDeck unisce in un'unica web UI la gestione completa dei container Docker d
 **Docker**
 - Lista container con stato, uptime, CPU%, RAM, I/O rete, porte, restart policy, icone (proxate e cacheate: funzionano offline e senza mixed-content dietro HTTPS) e pulsante "Apri WebUI".
 - Azioni: start / stop / restart / pause / kill / remove / update / prune immagini dangling — con **lock per-container** (le operazioni concorrenti ricevono 409).
-- **Update sicuro**: pull con progresso, clone integrale di `Config`+`HostConfig` (IP statici br0/macvlan preservati), verifica **healthcheck-aware**, **rollback automatico**, journal in SQLite con recovery al riavvio, gestione dei **dipendenti `net=container:`** (pattern VPN).
+- **Update sicuro**: pull con progresso, clone integrale di `Config`+`HostConfig` (IP statici br0/macvlan preservati), **stato preservato** (un container fermo resta fermo, uno avviato riparte con l'immagine nuova), verifica **healthcheck-aware**, **rollback automatico**, journal in SQLite con recovery al riavvio, gestione dei **dipendenti `net=container:`** (pattern VPN).
 - **Self-update** tramite helper effimero: UnraidDeck aggiorna sé stesso senza interventi manuali.
 - Check aggiornamenti via Registry HTTP API v2 (HEAD: non consuma i rate limit Docker Hub), credenziali opzionali per registry privati, badge "update/pinned/locale".
 - Log live (demux stdout/stderr, ricerca, download in streaming), console exec (xterm.js), stats real-time con sparkline e grafici.

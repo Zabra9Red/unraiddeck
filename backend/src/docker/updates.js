@@ -122,8 +122,14 @@ async function createWithNetworks(name, cfg, hostConfig, endpoints) {
     HostConfig: hostConfig,
     NetworkingConfig: netNames.length ? { EndpointsConfig: createEndpoints } : undefined,
   });
-  for (const netName of pending) {
-    await docker.getNetwork(netName).connect({ Container: created.id, EndpointConfig: endpoints[netName] });
+  try {
+    for (const netName of pending) {
+      await docker.getNetwork(netName).connect({ Container: created.id, EndpointConfig: endpoints[netName] });
+    }
+  } catch (e) {
+    // Il chiamante non ha ancora l'id: il container a metà va rimosso qui (occupa il nome)
+    await created.remove({ force: true }).catch(() => {});
+    throw e;
   }
   return created;
 }
@@ -195,7 +201,7 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
     }
     notify(`update-run:${name}`, 'info', `Update di ${name} avviato`, `Immagine ${ref}`, { force: true });
     const dependents = await findDependents(target.Id);
-    const wasRunning = Boolean(target.State?.Running);
+    let wasRunning = Boolean(target.State?.Running);
     const oldImageId = target.Image;
     const renamedName = `${name}-old-${Date.now()}`;
 
@@ -221,11 +227,16 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
         return { status: 'uptodate' };
       }
 
+      // Lo stato può cambiare durante il pull (avvio/stop da Unraid o CLI): riletto qui
+      wasRunning = Boolean((await docker.getContainer(target.Id).inspect()).State?.Running);
+      journalUpdate(jid, { payload: { wasRunning } });
+
       // 2-3. Clone integrale Config+HostConfig + reti
       const { cfg, hostConfig, endpoints } = buildCloneSpec(target, ref);
 
-      // 4. Stop → rename → create (stesso nome: l'autostart di dockerman è per nome) → start → verifica
-      emitProgress(target.Id, { phase: 'stop', status: 'Stop container…' });
+      // 4. Stop → rename → create (stesso nome: l'autostart di dockerman è per nome) → start → verifica.
+      //    Lo stato pre-update è preservato: un container fermo viene solo ricreato (niente start/verifica).
+      emitProgress(target.Id, { phase: 'stop', status: wasRunning ? 'Stop container…' : 'Container fermo: resterà fermo' });
       journalUpdate(jid, { phase: 'stop' });
       if (wasRunning) {
         await docker.getContainer(target.Id).stop().catch(e => { if (e.statusCode !== 304) throw e; });
@@ -240,12 +251,14 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
         newId = created.id;
         journalUpdate(jid, { phase: 'start', newId });
 
-        emitProgress(target.Id, { phase: 'start', status: 'Avvio…' });
-        await created.start();
+        if (wasRunning) {
+          emitProgress(target.Id, { phase: 'start', status: 'Avvio…' });
+          await created.start();
 
-        emitProgress(target.Id, { phase: 'verify', status: 'Verifica post-update…' });
-        journalUpdate(jid, { phase: 'verify' });
-        await verifyContainer(newId);
+          emitProgress(target.Id, { phase: 'verify', status: 'Verifica post-update…' });
+          journalUpdate(jid, { phase: 'verify' });
+          await verifyContainer(newId);
+        }
       } catch (err) {
         // Rollback automatico
         log.warn(`[update] ${name}: fallito (${err.message}), rollback…`);
@@ -259,7 +272,8 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
         throw new Error(`Update fallito, rollback eseguito: ${err.message}`);
       }
 
-      // 5. Dipendenti net=container: ricreati (riferimento per id) o riavviati (per nome)
+      // 5. Dipendenti net=container: ricreati (riferimento per id) o riavviati (per nome).
+      //    Con il target fermo non possono partire (netns assente): nessun riavvio/avvio.
       journalUpdate(jid, { phase: 'dependents' });
       const depResults = [];
       for (const dep of dependents) {
@@ -267,9 +281,9 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
           emitProgress(target.Id, { phase: 'dependents', status: `Aggiornamento dipendente ${dep.name}…` });
           if (dep.byName) {
             // Il netns deve ri-agganciarsi al nuovo container: restart sufficiente (risoluzione per nome)
-            if (dep.running) await docker.getContainer(dep.id).restart();
+            if (dep.running && wasRunning) await docker.getContainer(dep.id).restart();
           } else {
-            await recreateDependent(dep.id, newId);
+            await recreateDependent(dep.id, newId, wasRunning);
           }
           depResults.push({ name: dep.name, ok: true });
         } catch (e) {
@@ -292,12 +306,13 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
       cacheUpdateResult(ref, { status: 'current', localDigest: newDigest });
       // Azzera il badge "update ready" nella pagina Docker di Unraid (best-effort)
       syncUnraidUpdateStatus(ref, newDigest).catch(() => {});
-      emitProgress(target.Id, { phase: 'done', status: 'Update completato', newId });
-      audit(user, 'container.update', name, 'ok', null, `nuova immagine ${newImage.Id.slice(7, 19)}`);
+      const keptStopped = wasRunning ? '' : ' (era fermo: lasciato fermo)';
+      emitProgress(target.Id, { phase: 'done', status: `Update completato${keptStopped}`, newId });
+      audit(user, 'container.update', name, 'ok', null, `nuova immagine ${newImage.Id.slice(7, 19)}${keptStopped}`);
       const depFail = depResults.filter(d => !d.ok);
       notify(`update-run:${name}`, depFail.length ? 'warning' : 'info', `Update di ${name} completato`,
-        depFail.length ? `Dipendenti falliti: ${depFail.map(d => d.name).join(', ')}` : `Nuova immagine ${newImage.Id.slice(7, 19)}`, { force: true });
-      return { status: 'updated', newId, dependents: depResults };
+        depFail.length ? `Dipendenti falliti: ${depFail.map(d => d.name).join(', ')}` : `Nuova immagine ${newImage.Id.slice(7, 19)}${keptStopped}`, { force: true });
+      return { status: 'updated', newId, started: wasRunning, dependents: depResults };
     } catch (err) {
       // Errori in fase pull/clone (prima del rename): journal chiuso come fallito
       const row = db.prepare('SELECT phase, finished_at FROM update_journal WHERE id = ?').get(jid);
@@ -309,7 +324,8 @@ export async function updateContainer(id, opts = {}, user = 'sistema') {
 }
 
 // Ricrea un dipendente puntando il netns al nuovo id del target.
-async function recreateDependent(depId, newTargetId) {
+// Riparte solo se girava e il target è avviato (senza netns lo start fallirebbe).
+async function recreateDependent(depId, newTargetId, targetRunning) {
   const info = await docker.getContainer(depId).inspect();
   const name = info.Name.replace(/^\//, '');
   return withLock(depId, 'update-dipendente', async () => {
@@ -318,11 +334,15 @@ async function recreateDependent(depId, newTargetId) {
     const wasRunning = Boolean(info.State?.Running);
     if (wasRunning) await docker.getContainer(depId).stop().catch(() => {});
     await docker.getContainer(depId).rename({ name: `${name}-old-${Date.now()}` });
+    let createdId = null;
     try {
       const created = await createWithNetworks(name, cfg, hostConfig, endpoints);
-      if (wasRunning) await created.start();
+      createdId = created.id;
+      if (wasRunning && targetRunning) await created.start();
       await docker.getContainer(depId).remove({ force: true }).catch(() => {});
     } catch (e) {
+      // Il nuovo occupa il nome: va rimosso prima di ripristinare il vecchio
+      if (createdId) await docker.getContainer(createdId).remove({ force: true }).catch(() => {});
       await docker.getContainer(depId).rename({ name }).catch(() => {});
       if (wasRunning) await docker.getContainer(depId).start().catch(() => {});
       throw e;
@@ -356,16 +376,46 @@ export async function spawnSelfUpdateHelper(user) {
 }
 
 // ---- Recovery all'avvio: update interrotti da crash/riavvio ----
+// Esito per un journal aperto (pura, testabile):
+// - nuovo assente → rollback;
+// - vecchio già rimosso o verifica superata → complete (mai eliminare l'unico container rimasto);
+// - container fermo prima dell'update → il nuovo resta "created" per scelta → complete;
+// - altrimenti complete solo se il nuovo gira.
+const VERIFIED_PHASES = new Set(['dependents', 'cleanup']);
+export function recoveryPlan({ phase, wasRunning, newExists, newRunning, oldExists }) {
+  if (!newExists) return 'rollback';
+  if (!oldExists || VERIFIED_PHASES.has(phase)) return 'complete';
+  return newRunning || !wasRunning ? 'complete' : 'rollback';
+}
+
+// null SOLO se il container non esiste (404): un errore transitorio risale e chiude
+// il journal come fallito, invece di diventare una decisione distruttiva.
+async function inspectIfExists(id) {
+  try {
+    return await docker.getContainer(id).inspect();
+  } catch (e) {
+    if (e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
 export async function recoverJournal() {
   const open = db.prepare('SELECT * FROM update_journal WHERE finished_at IS NULL').all();
   for (const row of open) {
     const payload = JSON.parse(row.payload || '{}');
     log.warn(`[update] recovery journal #${row.id} (${row.name}, fase ${row.phase})`);
     try {
-      const newOk = row.new_id ? await docker.getContainer(row.new_id).inspect().catch(() => null) : null;
-      if (newOk?.State?.Running) {
-        // Il nuovo gira: completa (rimuovi il vecchio rinominato)
-        const old = await docker.getContainer(row.old_id).inspect().catch(() => null);
+      const newOk = row.new_id ? await inspectIfExists(row.new_id) : null;
+      const old = await inspectIfExists(row.old_id);
+      const plan = recoveryPlan({
+        phase: row.phase,
+        wasRunning: payload.wasRunning !== false,
+        newExists: Boolean(newOk),
+        newRunning: Boolean(newOk?.State?.Running),
+        oldExists: Boolean(old),
+      });
+      if (plan === 'complete') {
+        // Il nuovo è nello stato atteso: completa (rimuovi il vecchio rinominato)
         if (old && old.Name.replace(/^\//, '') === payload.renamedName) {
           await docker.getContainer(row.old_id).remove({ force: true }).catch(() => {});
         }
@@ -374,7 +424,6 @@ export async function recoverJournal() {
       } else {
         // Rollback: rimuovi il nuovo (se esiste), ripristina il vecchio
         if (newOk) await docker.getContainer(row.new_id).remove({ force: true }).catch(() => {});
-        const old = await docker.getContainer(row.old_id).inspect().catch(() => null);
         if (old) {
           if (old.Name.replace(/^\//, '') === payload.renamedName) {
             await docker.getContainer(row.old_id).rename({ name: payload.oldName }).catch(() => {});

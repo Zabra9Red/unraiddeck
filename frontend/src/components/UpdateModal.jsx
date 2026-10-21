@@ -16,6 +16,8 @@ export function UpdateModal({ container, onClose, onDone }) {
   const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  // Come il backend (State.Running): paused/restarting contano come avviati
+  const willRun = ['running', 'paused', 'restarting'].includes(container.state);
 
   useEffect(() => {
     api.get(`/containers/${container.id}/dependents`).then(setDependents).catch(() => setDependents([]));
@@ -41,7 +43,7 @@ export function UpdateModal({ container, onClose, onDone }) {
       setResult(out);
       if (out.status === 'uptodate') toast.info(container.name, t.upToDate);
       else if (out.status === 'helper-started') toast.info(container.name, t.updateSelfNote);
-      else toast.ok(container.name, 'Update completato');
+      else toast.ok(container.name, out.started === false ? t.updateDoneStopped : 'Update completato');
       onDone?.();
     } catch (e) {
       setError(e.message);
@@ -65,6 +67,9 @@ export function UpdateModal({ container, onClose, onDone }) {
           <div className="text-sm text-subtext1 mb-2">
             <span className="text-subtext0">{t.image}:</span> <code className="text-text">{container.image}</code>
           </div>
+          {!container.isSelf && (
+            <div className="text-sm text-subtext0 mb-3">{willRun ? t.updateRestartNote : t.updateStoppedNote}</div>
+          )}
           <div className="mb-3">
             <div className="text-sm text-subtext0 mb-1.5">{dependents === null ? <Spinner /> : dependents.length ? t.updateDependents : t.updateNoDependents}</div>
             {dependents?.length > 0 && (
