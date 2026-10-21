@@ -2,6 +2,11 @@
 
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/); versioni [SemVer](https://semver.org/lang/it/).
 
+## [1.23.5] — 2026-10-21
+
+### Corretto
+- **Etichetta dopo l'update di un container fermo**: il container ricreato (mai avviato) compariva come "creato" in grigio invece di "fermo". Ora gli stati Docker *created* ed *exited* si mostrano entrambi come **fermo**, come nella pagina Docker di Unraid.
+
 ## [1.23.4] — 2026-10-21
 
 ### Corretto

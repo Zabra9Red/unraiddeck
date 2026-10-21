@@ -17,7 +17,7 @@ const STATE_BADGE = {
   exited: ['red', t.exited],
   paused: ['yellow', t.paused],
   restarting: ['peach', t.restarting],
-  created: ['overlay', 'creato'],
+  created: ['red', t.exited], // mai avviato (es. container fermo dopo un update): per l'utente è fermo
   dead: ['red', 'dead'],
 };
 
