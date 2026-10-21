@@ -64,6 +64,21 @@ function buildCloneSpec(info, newImageRef) {
   if (cfg.Hostname === info.Id.slice(0, 12)) cfg.Hostname = '';
   const hostConfig = structuredClone(info.HostConfig);
 
+  // net=container: Docker rifiuta nel create hostname, porte, dns, link e mac propri.
+  // Nell'inspect compaiono comunque: hostname/domainname ereditati dal target allo
+  // start, ExposedPorts dall'EXPOSE dell'immagine → vanno tolti o il create fallisce.
+  if ((hostConfig.NetworkMode || '').startsWith('container:')) {
+    cfg.Hostname = '';
+    cfg.Domainname = '';
+    delete cfg.ExposedPorts;
+    delete cfg.MacAddress;
+    hostConfig.PortBindings = {};
+    hostConfig.PublishAllPorts = false;
+    hostConfig.Links = null;
+    hostConfig.Dns = [];
+    hostConfig.ExtraHosts = null;
+  }
+
   // Endpoint di rete: preserva IP statici, MAC e aliases (br0/macvlan/ipvlan).
   const shortId = info.Id.slice(0, 12);
   const endpoints = {};
